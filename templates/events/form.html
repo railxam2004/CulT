@@ -11,21 +11,49 @@
       {{ form.as_p }}
     </fieldset>
 
+    <!-- ↓↓↓ ЗАМЕНИ ЭТОТ БЛОК НА НОВЫЙ ↓↓↓ -->
     <fieldset>
       <legend>Тарифы</legend>
       {{ formset.management_form }}
-      {% for f in formset.forms %}
-        <div style="border:1px solid #ddd; padding:10px; margin:8px 0;">
-          {{ f.as_p }}
-          {% if f.instance.pk %}
-            <p><label>{{ f.DELETE }} Удалить</label></p>
-          {% endif %}
-        </div>
-      {% endfor %}
-      <p><em>Можно оставить лишние пустые формы — они будут игнорироваться.</em></p>
+
+      <div id="tariffs-container">
+        {% for f in formset.forms %}
+          <div class="tariff-item" style="border:1px solid #ddd; padding:10px; margin:8px 0;">
+            {{ f.as_p }}
+            {% if f.instance.pk %}
+              <p><label>{{ f.DELETE }} Удалить</label></p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" id="add-tariff">+ Добавить тариф</button>
+      <p><em>Вы можете добавить несколько тарифов, цена и квоты индивидуальны для каждого.</em></p>
     </fieldset>
+    <!-- ↑↑↑ ЗАМЕНИ ЭТОТ БЛОК НА НОВЫЙ ↑↑↑ -->
 
     <button type="submit" name="save_draft">Сохранить черновик</button>
     <button type="submit" name="submit_for_moderation">Отправить на модерацию</button>
   </form>
+
+  <!-- ↓↓↓ ДОБАВЬ JavaScript В КОНЕЦ ↓↓↓ -->
+  <script>
+  (function() {
+    const container = document.getElementById('tariffs-container');
+    const addBtn = document.getElementById('add-tariff');
+    const totalFormsInput = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
+    const emptyFormHtml = `{{ formset.empty_form.as_p|escapejs }}`;
+
+    addBtn.addEventListener('click', function() {
+      const formIndex = parseInt(totalFormsInput.value, 10);
+      const html = emptyFormHtml.replaceAll('__prefix__', formIndex);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'tariff-item';
+      wrapper.style.cssText = 'border:1px solid #ddd; padding:10px; margin:8px 0;';
+      wrapper.innerHTML = html;
+      container.appendChild(wrapper);
+      totalFormsInput.value = formIndex + 1;
+    });
+  })();
+  </script>
 {% endblock %}

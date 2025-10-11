@@ -53,6 +53,9 @@ EventTariffFormSet = inlineformset_factory(
     parent_model=Event,
     model=EventTariff,
     form=EventTariffForm,
-    extra=1,
-    can_delete=True
+    extra=0,            # без лишних пустых форм
+    can_delete=True,
+    min_num=1,          # опционально: хотя бы один тариф
+    validate_min=False  # можно True, если хочешь строго требовать ≥1
 )
+

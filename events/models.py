@@ -50,13 +50,21 @@ class Event(models.Model):
         verbose_name='Организатор',
         limit_choices_to={'is_organizer': True},
     )
-
+    
     description = models.TextField('Описание', blank=True)
     starts_at = models.DateTimeField('Дата и время начала')
     duration_minutes = models.PositiveIntegerField('Длительность, мин', blank=True, null=True)
     location = models.CharField('Локация', max_length=255)
 
     status = models.CharField('Статус', max_length=20, choices=Status.choices, default=Status.DRAFT)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name='Модератор',
+        related_name='moderated_events',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+    moderation_comment = models.TextField('Комментарий модератора', blank=True)
     capacity = models.PositiveIntegerField('Общая вместимость', blank=True, null=True)
     available_tickets = models.PositiveIntegerField('Остаток билетов (денорм.)', default=0)
     views_count = models.PositiveIntegerField('Просмотры', default=0)
