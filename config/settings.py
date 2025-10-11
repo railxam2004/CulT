@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'core',
     'users',
-    'events',
+    'events.apps.EventsConfig', # подключаем через apps.py для сигналов
     'tickets',
     'favorites',
     'cart',
