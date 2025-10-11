@@ -68,7 +68,11 @@ class MyPasswordChangeDoneView(PasswordChangeDoneView):
 
 @login_required
 def organizer_request(request):
-    """Подача заявки на статус организатора."""
+    # Если уже организатор — не даём подать повторно
+    if request.user.is_organizer:
+        messages.info(request, "Вы уже являетесь организатором.")
+        return redirect("users:profile")
+
     active_statuses = [
         OrganizerApplication.Status.NEW,
         OrganizerApplication.Status.IN_REVIEW,
@@ -90,3 +94,4 @@ def organizer_request(request):
         form = OrganizerApplicationForm(user=request.user)
 
     return render(request, "users/organizer_request.html", {"form": form})
+
