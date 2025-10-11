@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Заявка на статус организатора{% endblock %}
+{% block content %}
+  <h2>Заявка на статус организатора</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Отправить заявку</button>
+  </form>
+{% endblock %}
