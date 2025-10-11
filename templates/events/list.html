@@ -21,7 +21,7 @@
     <ul>
       {% for e in events %}
         <li>
-          <a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a>
+          <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
           — {{ e.category.name }} — {{ e.starts_at|date:"d.m.Y H:i" }}
           {% if e.available_tickets %} — Остаток: {{ e.available_tickets }}{% endif %}
         </li>

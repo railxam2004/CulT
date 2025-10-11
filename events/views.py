@@ -50,10 +50,10 @@ def event_list(request, slug=None):
     })
 
 
-def event_detail(request, pk: int):
+def event_detail(request, slug: str):
     event = get_object_or_404(
         Event,
-        pk=pk,
+        slug=slug,
         status=Event.Status.PUBLISHED,
         is_active=True
     )
