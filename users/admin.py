@@ -1,12 +1,12 @@
 from django import forms
 from django.contrib import admin
+from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from .models import User, OrganizerApplication
 
-# === форма для блока "Actions" в админке ===
-class OrganizerActionForm(forms.Form):
-    action = forms.ChoiceField(required=False, label="Действие")  
-    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
+
+class OrganizerActionForm(ActionForm):
+    """Форма действий с полем комментария."""
     comment = forms.CharField(
         required=False,
         label="Комментарий (для отклонения)",
@@ -41,6 +41,7 @@ def reject_applications(modeladmin, request, queryset):
         updated += 1
     modeladmin.message_user(request, f"Отклонено заявок: {updated}")
 
+
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     fieldsets = DjangoUserAdmin.fieldsets + (
@@ -49,7 +50,6 @@ class UserAdmin(DjangoUserAdmin):
     list_display = ("username", "email", "is_organizer", "is_staff", "is_active")
     list_filter = ("is_organizer", "is_staff", "is_active")
 
-    # Экшены для управления статусом организатора прямо на списке пользователей
     @admin.action(description="Назначить организатором")
     def make_organizer(self, request, queryset):
         updated = queryset.update(is_organizer=True)
@@ -68,7 +68,5 @@ class OrganizerApplicationAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'company_name', 'inn', 'status', 'created_at')
     list_filter = ('status', 'created_at')
     search_fields = ('user__username', 'user__email', 'company_name', 'inn', 'phone')
-
-    # Вот тут подключаем форму с полем "comment"
     action_form = OrganizerActionForm
     actions = [approve_applications, reject_applications]
