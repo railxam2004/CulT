@@ -12,17 +12,20 @@
   {% if request.user.is_organizer %}
     <p><strong>Статус:</strong> Организатор ✅</p>
   {% else %}
-    {% if last_app and last_app.status != 'rejected' %}
-      <p>Текущая заявка: <em>{{ last_app.get_status_display }}</em></p>
-      {% if last_app.comment %}
-        <p><strong>Комментарий модератора:</strong> {{ last_app.comment }}</p>
+    {% if has_active_app %}
+      <p>Текущая заявка: <em>{{ last_active_app.get_status_display }}</em></p>
+      {% if last_active_app.comment %}
+        <p><strong>Комментарий модератора:</strong> {{ last_active_app.comment }}</p>
       {% endif %}
     {% else %}
-      <p>
-        <a href="{% url 'users:organizer_request' %}">Подать заявку на статус организатора</a>
-      </p>
-      {% if last_app and last_app.status == 'rejected' %}
-        <p><small>Предыдущая заявка была отклонена{% if last_app.comment %}: {{ last_app.comment }}{% endif %}.</small></p>
+      <p><a href="{% url 'users:organizer_request' %}">Подать заявку на статус организатора</a></p>
+
+      {% if last_app %}
+        {% if last_app.status == 'rejected' %}
+          <p><small>Предыдущая заявка была отклонена{% if last_app.comment %}: {{ last_app.comment }}{% endif %}.</small></p>
+        {% elif last_app.status == 'approved' %}
+          <p><small>Ранее статус организатора был выдан и затем снят администратором. Вы можете подать новую заявку.</small></p>
+        {% endif %}
       {% endif %}
     {% endif %}
   {% endif %}

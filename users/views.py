@@ -30,13 +30,32 @@ def register(request):
 
 @login_required
 def profile(request):
-    # Покажем статус последней заявки организатора
+    active_statuses = [
+        OrganizerApplication.Status.NEW,
+        OrganizerApplication.Status.IN_REVIEW,
+    ]
+    # последняя заявка любого статуса (для инфо)
     last_app = (
-        OrganizerApplication.objects.filter(user=request.user)
-        .order_by("-created_at")
+        OrganizerApplication.objects
+        .filter(user=request.user)
+        .order_by('-created_at')
         .first()
     )
-    return render(request, "users/profile.html", {"last_app": last_app})
+    # активная заявка (new/moderation), если есть
+    last_active_app = (
+        OrganizerApplication.objects
+        .filter(user=request.user, status__in=active_statuses)
+        .order_by('-created_at')
+        .first()
+    )
+    has_active_app = last_active_app is not None
+
+    context = {
+        "last_app": last_app,
+        "last_active_app": last_active_app,
+        "has_active_app": has_active_app,
+    }
+    return render(request, "users/profile.html", context)
 
 
 @login_required
