@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Мои мероприятия{% endblock %}
+{% block content %}
+  <h1>Мои мероприятия</h1>
+  <p><a href="{% url 'events:create' %}">+ Создать мероприятие</a></p>
+
+  {% if events %}
+    <table>
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Дата</th>
+          <th>Статус</th>
+          <th>Остаток</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+          <tr>
+            <td>{{ e.title }}</td>
+            <td>{{ e.starts_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ e.get_status_display }}</td>
+            <td>{{ e.available_tickets }}</td>
+            <td><a href="{% url 'events:edit' e.pk %}">Редактировать</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Событий пока нет.</p>
+  {% endif %}
+{% endblock %}

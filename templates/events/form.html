@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}{% if is_edit %}Редактировать{% else %}Создать{% endif %} событие{% endblock %}
+{% block content %}
+  <h1>{% if is_edit %}Редактировать{% else %}Создать{% endif %} событие</h1>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <fieldset>
+      <legend>Основное</legend>
+      {{ form.as_p }}
+    </fieldset>
+
+    <fieldset>
+      <legend>Тарифы</legend>
+      {{ formset.management_form }}
+      {% for f in formset.forms %}
+        <div style="border:1px solid #ddd; padding:10px; margin:8px 0;">
+          {{ f.as_p }}
+          {% if f.instance.pk %}
+            <p><label>{{ f.DELETE }} Удалить</label></p>
+          {% endif %}
+        </div>
+      {% endfor %}
+      <p><em>Можно оставить лишние пустые формы — они будут игнорироваться.</em></p>
+    </fieldset>
+
+    <button type="submit" name="save_draft">Сохранить черновик</button>
+    <button type="submit" name="submit_for_moderation">Отправить на модерацию</button>
+  </form>
+{% endblock %}

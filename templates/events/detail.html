@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.title }}{% endblock %}
+{% block content %}
+  <h1>{{ event.title }}</h1>
+  <p><strong>Категория:</strong> {{ event.category.name }}</p>
+  <p><strong>Дата и время:</strong> {{ event.starts_at|date:"d.m.Y H:i" }}</p>
+  {% if event.duration_minutes %}
+    <p><strong>Длительность:</strong> ~{{ event.duration_minutes }} мин.</p>
+  {% endif %}
+  <p><strong>Место:</strong> {{ event.location }}</p>
+  {% if event.image %}
+    <p><img src="{{ event.image.url }}" alt="{{ event.title }}" style="max-width:300px;"></p>
+  {% endif %}
+  <p>{{ event.description|linebreaks }}</p>
+
+  <h3>Тарифы</h3>
+  {% if tariffs %}
+    <ul>
+      {% for et in tariffs %}
+        <li>
+          {{ et.tariff.name }} — {{ et.price }} ₽
+          {% with rem=et.available_quantity|add:"-et.sales_count" %}
+            (осталось: {{ et.available_quantity|add:"-et.sales_count" }})
+          {% endwith %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Тарифы не указаны.</p>
+  {% endif %}
+{% endblock %}

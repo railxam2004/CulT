@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Мероприятия{% endblock %}
+{% block content %}
+  <h1>Мероприятия</h1>
+
+  <div>
+    <strong>Категории:</strong>
+    <a href="{% url 'events:list' %}">Все</a>
+    {% for c in categories %}
+      {% if current_category and c.pk == current_category.pk %}
+        | <strong>{{ c.name }}</strong>
+      {% else %}
+        | <a href="{% url 'events:category' c.slug %}">{{ c.name }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <hr>
+
+  {% if events %}
+    <ul>
+      {% for e in events %}
+        <li>
+          <a href="{% url 'events:detail' e.pk %}">{{ e.title }}</a>
+          — {{ e.category.name }} — {{ e.starts_at|date:"d.m.Y H:i" }}
+          {% if e.available_tickets %} — Остаток: {{ e.available_tickets }}{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if events.has_other_pages %}
+      <div>
+        {% if events.has_previous %}
+          <a href="?page={{ events.previous_page_number }}">← Назад</a>
+        {% endif %}
+        Стр. {{ events.number }} из {{ events.paginator.num_pages }}
+        {% if events.has_next %}
+          <a href="?page={{ events.next_page_number }}">Вперёд →</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <p>Пока нет мероприятий.</p>
+  {% endif %}
+
+  {% if user.is_authenticated and user.is_organizer %}
+    <p><a href="{% url 'events:create' %}">+ Создать мероприятие</a></p>
+  {% endif %}
+{% endblock %}
