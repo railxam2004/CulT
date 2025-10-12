@@ -103,3 +103,9 @@ class EventTariff(models.Model):
 
     def __str__(self):
         return f'{self.event.title} — {self.tariff.name}'
+    
+    @property
+    def remaining(self):
+        aq = self.available_quantity or 0
+        sc = self.sales_count or 0
+        return max(aq - sc, 0)
