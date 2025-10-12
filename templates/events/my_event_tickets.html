@@ -5,8 +5,10 @@
 
 <p>
   <a href="{% url 'tickets:scan_event' event.id %}">Перейти к сканеру для этого события</a> |
+  <a href="{% url 'events:my_event_tickets_export' event.id %}">Экспорт CSV</a> |
   <a href="{% url 'events:my_list' %}">← Мои мероприятия</a>
 </p>
+
 
 {% if tickets %}
   <table>

@@ -5,6 +5,10 @@ from django.core.paginator import Paginator
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from tickets.models import Ticket
+import csv
+from django.http import HttpResponse
+from django.utils import timezone
+
 
 from .forms import EventForm, EventTariffFormSet
 from .models import Category, Event
@@ -173,3 +177,37 @@ def my_event_tickets(request, pk: int):
                .filter(event=event)
                .order_by('-created_at'))
     return render(request, 'events/my_event_tickets.html', {'event': event, 'tickets': tickets})
+
+@login_required
+def my_event_tickets_export(request, pk: int):
+    if not _require_organizer(request):
+      return redirect("users:profile")
+
+    event = get_object_or_404(Event, pk=pk, organizer=request.user)
+    tickets = (Ticket.objects
+               .select_related('user', 'event_tariff', 'event_tariff__tariff')
+               .filter(event=event)
+               .order_by('id'))
+
+    # CSV с BOM, чтобы Excel на Windows корректно читал кириллицу
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    filename = f"tickets-event-{event.id}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write('\ufeff')  # BOM
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'ID билета', 'Покупатель', 'Email',
+        'Тариф', 'Цена', 'Использован',
+        'Дата покупки', 'QR-хэш'
+    ])
+    for t in tickets:
+        buyer = t.user.get_full_name() or t.user.username
+        email = t.user.email
+        tariff = t.event_tariff.tariff.name
+        price = str(t.event_tariff.price)
+        used = 'Да' if t.is_used else 'Нет'
+        created = timezone.localtime(t.created_at).strftime('%d.%m.%Y %H:%M')
+        writer.writerow([t.id, buyer, email, tariff, price, used, created, t.qr_hash])
+
+    return response

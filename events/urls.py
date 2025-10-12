@@ -1,19 +1,18 @@
-# events/urls.py
 from django.urls import path
 from . import views
 
 app_name = 'events'
 
 urlpatterns = [
-    # --- Кабинет организатора (сначала, чтобы не перехватил slug-роут) ---
+    # кабинет организатора
     path('my-events/', views.my_events, name='my_list'),
     path('my-events/create/', views.my_event_create, name='create'),
     path('my-events/<int:pk>/edit/', views.my_event_edit, name='edit'),
     path('my-events/<int:pk>/tickets/', views.my_event_tickets, name='my_event_tickets'),
+    path('my-events/<int:pk>/tickets/export/', views.my_event_tickets_export, name='my_event_tickets_export'),  # <-- NEW
 
-
-    # --- Публичные ---
+    # публичные
     path('', views.event_list, name='list'),
     path('category/<slug:slug>/', views.event_list, name='category'),
-    path('<slug:slug>/', views.event_detail, name='detail'),  # теперь по слагу
+    path('<slug:slug>/', views.event_detail, name='detail'),
 ]

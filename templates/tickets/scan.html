@@ -3,12 +3,36 @@
 {% block content %}
 <h1>Проверка билетов {% if event %}<small>— {{ event.title }}</small>{% endif %}</h1>
 
-<form method="post" style="margin-bottom: 1rem;">
+<!-- Форма ручного ввода (используется и для автосабмита после скана) -->
+<form id="scan-form" method="post" style="margin-bottom: 1rem;">
   {% csrf_token %}
   <label for="code">Сканируйте QR или введите код / ID:</label><br>
-  <input id="code" name="code" type="text" autofocus style="min-width: 360px;" placeholder="TICKET:123|HASH:...|EVENT:5 или qr_hash или ID">
-  <button type="submit" name="action" value="check">Проверить</button>
+  <input id="code" name="code" type="text" autofocus style="min-width: 360px;"
+         placeholder="TICKET:123|HASH:...|EVENT:5 или qr_hash или ID">
+  <!-- скрытое поле с действием: check/use/unuse -->
+  <input type="hidden" id="action-input" name="action" value="check">
+  <button type="submit">Проверить</button>
 </form>
+
+<!-- Блок камеры -->
+<div style="margin: 16px 0; padding: 12px; border: 1px solid #ddd;">
+  <h3>Сканирование с камеры</h3>
+  <div style="margin-bottom: 8px;">
+    <label>Камера: </label>
+    <select id="camera-select" style="min-width: 220px;"></select>
+    <label style="margin-left: 16px;">
+      <input type="checkbox" id="auto-use"> Автоматически отмечать «использован»
+    </label>
+  </div>
+  <div id="qr-reader" style="width: 320px; height: 320px; display: none;"></div>
+  <div style="margin-top: 8px;">
+    <button type="button" id="start-btn">Старт</button>
+    <button type="button" id="stop-btn" disabled>Стоп</button>
+  </div>
+  <p style="font-size: 12px; color: #666; margin-top: 8px;">
+    Примечание: доступ к камере работает на <b>localhost</b> и при <b>HTTPS</b>.
+  </p>
+</div>
 
 {% if result %}
   <div style="border:1px solid #ddd; padding:12px;">
@@ -33,11 +57,139 @@
   </div>
 {% endif %}
 
+<!-- Библиотека html5-qrcode (CDN) -->
+<script src="https://unpkg.com/html5-qrcode@2.0.9/dist/html5-qrcode.min.js"></script>
 <script>
-// автофокус поля после сабмита и при загрузке, удобно с ручным сканером
-(function() {
-  const input = document.getElementById('code');
-  if (input) input.focus();
+(async function() {
+  const form = document.getElementById('scan-form');
+  const codeInput = document.getElementById('code');
+  const actionInput = document.getElementById('action-input');
+  const cameraSelect = document.getElementById('camera-select');
+  const startBtn = document.getElementById('start-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  const autoUse = document.getElementById('auto-use');
+  const readerElId = 'qr-reader';
+
+  let html5QrCode = null;
+  let running = false;
+
+  function notify(msg) {
+    console.log('[scanner]', msg);
+  }
+
+  function showHelp(text) {
+    // Вы можете заменить на красивый баннер на странице
+    console.warn(text);
+  }
+
+  // 1) Проверяем поддержку API
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showHelp('Браузер не поддерживает доступ к камере (getUserMedia). Попробуйте другой браузер.');
+    startBtn.disabled = true;
+    return;
+  }
+
+  // 2) Явно просим разрешение на камеру, чтобы после этого появились устройства
+  async function ensurePermission() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // сразу останавливаем, нам нужен был лишь запрос разрешения
+      stream.getTracks().forEach(t => t.stop());
+      return true;
+    } catch (e) {
+      showHelp('Доступ к камере не выдан. Разрешите доступ в «Настройки сайта» для localhost и перезагрузите страницу.');
+      startBtn.disabled = true;
+      return false;
+    }
+  }
+
+  // 3) Загружаем список камер
+  async function refreshCameras() {
+    cameraSelect.innerHTML = '';
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (!devices || devices.length === 0) {
+        startBtn.disabled = true;
+        showHelp('Камеры не найдены. Проверьте, подключена ли камера и выдано ли разрешение.');
+        return;
+      }
+      devices.forEach((d, i) => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.label || `Камера ${i+1}`;
+        cameraSelect.appendChild(opt);
+      });
+      startBtn.disabled = false;
+    } catch (err) {
+      startBtn.disabled = true;
+      showHelp('Не удалось получить список камер. Убедитесь, что открыто http://localhost:8000 или HTTPS.');
+      console.warn(err);
+    }
+  }
+
+  // Инициируем: просим разрешение и подгружаем камеры
+  const granted = await ensurePermission();
+  if (granted) {
+    await refreshCameras();
+  }
+
+  async function startScanner() {
+    if (running) return;
+    const camId = cameraSelect.value;
+    if (!camId) {
+      showHelp('Не выбрана камера.');
+      return;
+    }
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode(readerElId, /* verbose= */ false);
+    }
+    document.getElementById(readerElId).style.display = 'block';
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    const onScanSuccess = (decodedText, decodedResult) => {
+      notify('decoded: ' + decodedText);
+      codeInput.value = decodedText;
+      actionInput.value = autoUse.checked ? 'use' : 'check';
+      form.submit();
+      stopScanner(); // останавливаем после успешного чтения
+    };
+
+    const onScanFailure = (error) => {
+      // ошибки распознавания происходят часто — не шумим в UI
+      // console.debug(error);
+    };
+
+    try {
+      await html5QrCode.start({ deviceId: { exact: camId } }, config, onScanSuccess, onScanFailure);
+      running = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (e) {
+      showHelp('Не удалось запустить камеру. Проверьте разрешения и попробуйте другую камеру.');
+      console.error(e);
+    }
+  }
+
+  async function stopScanner() {
+    if (!html5QrCode || !running) return;
+    try {
+      await html5QrCode.stop();
+      await html5QrCode.clear();
+    } catch (e) {
+      console.warn('Ошибка остановки сканера:', e);
+    } finally {
+      running = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      document.getElementById(readerElId).style.display = 'none';
+      codeInput.focus();
+    }
+  }
+
+  startBtn.addEventListener('click', startScanner);
+  stopBtn.addEventListener('click', stopScanner);
 })();
 </script>
+
 {% endblock %}
