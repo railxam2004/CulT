@@ -1,0 +1,9 @@
+Здравствуйте, {{ order.user.get_full_name|default:order.user.username }}!
+
+Ваш заказ №{{ order.id }} на сайте {{ site_name }} оплачен.
+Билеты во вложениях в формате PDF.
+
+Личный кабинет с билетами: {{ site_url }}/my-tickets/
+Страница заказа: {{ site_url }}/order/{{ order.id }}/
+
+Спасибо, что выбрали {{ site_name }}!

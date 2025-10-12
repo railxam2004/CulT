@@ -2,10 +2,65 @@
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-
 from events.models import EventTariff
 from cart.models import CartItem
 from .models import Order, OrderItem, Ticket
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
+from django.template.loader import render_to_string
+import logging
+
+from .models import Order
+from .utils import build_ticket_pdf
+logger = logging.getLogger('mail')
+
+def send_tickets_email(order_id: int, attach_pdfs: bool = True) -> None:
+    """
+    Отправляет пользователю письмо с билетами (PDF).
+    Ошибки логируются и не пробрасываются наружу.
+    """
+    try:
+        order = (Order.objects
+                 .select_related('user')
+                 .prefetch_related('tickets__event', 'tickets__event_tariff__tariff')
+                 .get(pk=order_id))
+    except Order.DoesNotExist:
+        logger.error("send_tickets_email: order %s does not exist", order_id)
+        return
+
+    subject = f"{settings.SITE_NAME}: ваши билеты — заказ №{order.id}"
+    ctx = {'order': order, 'site_name': settings.SITE_NAME, 'site_url': settings.SITE_URL}
+    text = render_to_string('email/tickets_paid.txt', ctx)
+    html = render_to_string('email/tickets_paid.html', ctx)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[order.user.email] if order.user and order.user.email else [],
+    )
+    if html:
+        msg.attach_alternative(html, 'text/html')
+
+    # Прикладываем PDF каждого билета
+    if attach_pdfs:
+        for t in order.tickets.all():
+            try:
+                pdf_bytes = build_ticket_pdf(t)  # должен вернуть bytes
+                msg.attach(f"ticket-{t.id}.pdf", pdf_bytes, 'application/pdf')
+            except Exception as e:
+                logger.exception("PDF build failed for ticket %s (order %s): %s", t.id, order.id, e)
+
+    # Отправка
+    try:
+        sent_count = msg.send(fail_silently=False)  # хотим поймать исключение
+        logger.info("Tickets email sent: order=%s to=%s result=%s",
+                    order.id, order.user.email, sent_count)
+    except Exception as e:
+        # не роняем оплату
+        logger.exception("Tickets email FAILED: order=%s to=%s: %s",
+                         order.id, order.user.email, e)
 
 def create_order_from_cart(user):
     items = list(CartItem.objects.select_related('event', 'event_tariff').filter(user=user))
@@ -59,11 +114,12 @@ def finalize_order_payment(order: Order, user):
                 event_tariff=item.event_tariff,
                 qr_hash=Ticket.make_qr_hash()
             )
-
     # 3) помечаем заказ оплаченным и чистим корзину
     order.status = Order.Status.PAID
     order.paid_at = timezone.now()
     order.save(update_fields=['status', 'paid_at'])
 
     CartItem.objects.filter(user=order.user).delete()
+    transaction.on_commit(lambda: send_tickets_email(order.id, attach_pdfs=True))
     return order
+

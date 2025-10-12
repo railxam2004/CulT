@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
+    <h2 style="margin:0 0 12px;">Ваши билеты — заказ №{{ order.id }}</h2>
+    <p>Здравствуйте, <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>!</p>
+    <p>Оплата прошла успешно. Билеты приложены к письму в формате PDF.</p>
+
+    <h3 style="margin:16px 0 8px;">Состав заказа</h3>
+    <ul>
+      {% for t in order.tickets.all %}
+        <li>
+          {{ t.event.title }} — {{ t.event.starts_at|date:"d.m.Y H:i" }}, {{ t.event.location }}
+          (тариф: {{ t.event_tariff.tariff.name }})
+        </li>
+      {% endfor %}
+    </ul>
+
+    <p style="margin-top:16px;">
+      Мои билеты: <a href="{{ site_url }}/my-tickets/">{{ site_url }}/my-tickets/</a><br>
+      Страница заказа: <a href="{{ site_url }}/order/{{ order.id }}/">{{ site_url }}/order/{{ order.id }}/</a>
+    </p>
+
+    <p style="color:#666;margin-top:20px;">Спасибо, что выбрали {{ site_name }}!</p>
+  </body>
+</html>

@@ -102,8 +102,37 @@ LANGUAGE_CODE = 'ru-ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_TZ = True
 
-# Dev-почта
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# --- Данные сайта для писем и шаблонов ---
+SITE_NAME = os.getenv('SITE_NAME', 'CulT')
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
+
+# --- Email backend ---
+# По умолчанию в DEBUG — консоль, в проде — SMTP, но можно перезадать через переменные.
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+# SMTP (Яндекс) — используем SSL: порт 465
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.yandex.ru')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')          # например, yourname@yandex.ru
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # пароль приложения (см. ниже)
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'true').lower() == 'true'
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'  # для 587 ставьте true, а SSL -> false
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@localhost')
+SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
+
+# --- Логирование отправки писем ---
+import logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'loggers': {
+        # наш явный логгер для писем
+        'mail': {'handlers': ['console'], 'level': 'INFO'},
+    },
+}
+
 
 USE_I18N = True
 
@@ -128,4 +157,5 @@ AUTH_USER_MODEL = 'users.User'
 LOGIN_REDIRECT_URL = 'pages:home'
 LOGOUT_REDIRECT_URL = 'pages:home'
 LOGIN_URL = 'users:login'
+
 
