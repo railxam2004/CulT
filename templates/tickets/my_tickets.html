@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Мои билеты{% endblock %}
+{% block content %}
+<h1>Мои билеты</h1>
+{% if tickets %}
+  <ul>
+    {% for t in tickets %}
+      <li>
+        <a href="{% url 'tickets:ticket_view' t.id %}">{{ t.event.title }}</a>
+        — {{ t.event_tariff.tariff.name }}
+        — получен: {{ t.created_at|date:"d.m.Y H:i" }}
+        — QR: <code>{{ t.qr_hash }}</code>
+        {% if t.is_used %} (использован) {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>Билетов пока нет.</p>
+{% endif %}
+{% endblock %}

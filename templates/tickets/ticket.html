@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Билет #{{ ticket.id }}{% endblock %}
+{% block content %}
+<h1>{{ ticket.event.title }}</h1>
+<p><strong>Тариф:</strong> {{ ticket.event_tariff.tariff.name }}</p>
+<p><strong>Дата покупки:</strong> {{ ticket.created_at|date:"d.m.Y H:i" }}</p>
+<p><strong>QR-код (код):</strong> <code>{{ ticket.qr_hash }}</code></p>
+<p><em>Позже здесь появится загрузка PDF и графический QR.</em></p>
+{% endblock %}
