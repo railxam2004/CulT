@@ -21,6 +21,7 @@
 {% if user.is_authenticated and user.is_organizer %}
   <a href="{% url 'events:my_list' %}">Мои мероприятия</a> |
   <a href="{% url 'events:create' %}">Создать событие</a> |
+  <a href="{% url 'tickets:scan' %}">Сканер</a> |
 {% endif %}
 
 

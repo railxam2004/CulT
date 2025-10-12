@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Проверка билетов{% endblock %}
+{% block content %}
+<h1>Проверка билетов {% if event %}<small>— {{ event.title }}</small>{% endif %}</h1>
+
+<form method="post" style="margin-bottom: 1rem;">
+  {% csrf_token %}
+  <label for="code">Сканируйте QR или введите код / ID:</label><br>
+  <input id="code" name="code" type="text" autofocus style="min-width: 360px;" placeholder="TICKET:123|HASH:...|EVENT:5 или qr_hash или ID">
+  <button type="submit" name="action" value="check">Проверить</button>
+</form>
+
+{% if result %}
+  <div style="border:1px solid #ddd; padding:12px;">
+    <p><strong>Событие:</strong> {{ result.event.title }}</p>
+    <p><strong>Покупатель:</strong> {{ result.user.get_full_name|default:result.user.username }}</p>
+    <p><strong>Тариф:</strong> {{ result.event_tariff.tariff.name }}</p>
+    <p><strong>QR:</strong> <code>{{ result.qr_hash }}</code></p>
+    <p>
+      <strong>Статус:</strong>
+      {% if result.is_used %}<span style="color:#c00;">УЖЕ ИСПОЛЬЗОВАН</span>{% else %}<span style="color:#080;">ДЕЙСТВИТЕЛЕН</span>{% endif %}
+    </p>
+
+    <form method="post" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="code" value="TICKET:{{ result.id }}|HASH:{{ result.qr_hash }}|EVENT:{{ result.event_id }}">
+      {% if result.is_used %}
+        <button type="submit" name="action" value="unuse">Снять отметку</button>
+      {% else %}
+        <button type="submit" name="action" value="use">Отметить как использованный</button>
+      {% endif %}
+    </form>
+  </div>
+{% endif %}
+
+<script>
+// автофокус поля после сабмита и при загрузке, удобно с ручным сканером
+(function() {
+  const input = document.getElementById('code');
+  if (input) input.focus();
+})();
+</script>
+{% endblock %}

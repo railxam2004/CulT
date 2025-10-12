@@ -9,6 +9,8 @@ urlpatterns = [
     path('my-events/', views.my_events, name='my_list'),
     path('my-events/create/', views.my_event_create, name='create'),
     path('my-events/<int:pk>/edit/', views.my_event_edit, name='edit'),
+    path('my-events/<int:pk>/tickets/', views.my_event_tickets, name='my_event_tickets'),
+
 
     # --- Публичные ---
     path('', views.event_list, name='list'),

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
+from tickets.models import Ticket
 
 from .forms import EventForm, EventTariffFormSet
 from .models import Category, Event
@@ -161,3 +162,14 @@ def my_event_edit(request, pk: int):
         "is_edit": True,
         "event": event,
     })
+
+@login_required
+def my_event_tickets(request, pk: int):
+    if not _require_organizer(request):
+        return redirect("users:profile")
+    event = get_object_or_404(Event, pk=pk, organizer=request.user)
+    tickets = (Ticket.objects
+               .select_related('user', 'event_tariff', 'event_tariff__tariff')
+               .filter(event=event)
+               .order_by('-created_at'))
+    return render(request, 'events/my_event_tickets.html', {'event': event, 'tickets': tickets})
