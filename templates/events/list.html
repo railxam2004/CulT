@@ -3,6 +3,32 @@
 {% block content %}
   <h1>Мероприятия</h1>
 
+  <!-- ДОБАВЛЕНО: Форма фильтров -->
+  <form method="get" class="filters" style="margin-bottom: 1rem;">
+    <input type="text" name="q" placeholder="Поиск по названию/описанию" value="{{ q }}">
+
+    <select name="category" aria-label="Категория">
+      <option value="">Все категории</option>
+      {% for c in categories %}
+        <option value="{{ c.slug }}" {% if c.slug == current_category %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+
+    <input type="date" name="date_from" value="{{ date_from }}" aria-label="С">
+    <input type="date" name="date_to" value="{{ date_to }}" aria-label="По">
+
+    <input type="text" name="city" placeholder="Город/локация" value="{{ city }}">
+
+    <select name="sort" aria-label="Сортировка">
+      <option value="soon" {% if sort == 'soon' %}selected{% endif %}>Скоро</option>
+      <option value="popular" {% if sort == 'popular' %}selected{% endif %}>Популярные</option>
+      <option value="cheap" {% if sort == 'cheap' %}selected{% endif %}>Дешевле</option>
+    </select>
+
+    <button type="submit">Применить</button>
+    <a href="{% url 'events:list' %}">Сбросить</a>
+  </form>
+
   <div>
     <strong>Категории:</strong>
     <a href="{% url 'events:list' %}">Все</a>
@@ -20,6 +46,21 @@
   {% if events %}
     <ul>
       {% for e in events %}
+        <!-- ДОБАВЛЕНО: article с улучшенной разметкой -->
+        <article class="event-card" style="margin-bottom: 1rem;">
+          <h3 style="margin: 0;">
+            <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
+            {% if user.is_authenticated and e.id in favorite_ids %}
+              <span title="В избранном">★</span>
+            {% endif %}
+          </h3>
+          <p style="margin: .25rem 0 .5rem 0;">
+            {{ e.starts_at|date:"d.m.Y H:i" }} — {{ e.location }}
+            {% if e.min_price %} • от {{ e.min_price }} ₽{% endif %}
+          </p>
+        </article>
+        
+        <!-- Оригинальный li оставлен для совместимости -->
         <li>
           <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
           — {{ e.category.name }} — {{ e.starts_at|date:"d.m.Y H:i" }}
@@ -41,6 +82,20 @@
       {% endfor %}
     </ul>
 
+    <!-- ДОБАВЛЕНО: Улучшенная пагинация с сохранением параметров -->
+    {% if events.has_other_pages %}
+      <nav class="pagination" aria-label="Пагинация" style="margin-top: 1rem;">
+        {% if events.has_previous %}
+          <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.previous_page_number }}">← Назад</a>
+        {% endif %}
+        <span style="margin: 0 .5rem;">Стр. {{ events.number }} из {{ events.paginator.num_pages }}</span>
+        {% if events.has_next %}
+          <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.next_page_number }}">Вперёд →</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+    <!-- Оригинальная пагинация оставлена для совместимости -->
     {% if events.has_other_pages %}
       <div>
         {% if events.has_previous %}

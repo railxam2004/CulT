@@ -1,8 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import F
+from django.db.models import Q, Min, Case, When, Value, IntegerField, F
+from django.utils.dateparse import parse_date
 from django.shortcuts import get_object_or_404, redirect, render
+from urllib.parse import urlencode
 from tickets.models import Ticket
 from favorites.models import Favorite
 import csv
@@ -32,37 +34,118 @@ def _event_has_active_tariff(event: Event) -> bool:
 
 # ---------- ПУБЛИЧНАЯ ВИТРИНА ----------
 
-def event_list(request, slug=None):
-    qs = Event.objects.filter(
-        status=Event.Status.PUBLISHED,
-        is_active=True
-    ).select_related("category", "organizer").order_by("-starts_at")
+from django.db.models import Q, Case, When, Value, IntegerField, Min
+from django.utils.dateparse import parse_date
 
-    current_category = None
-    if slug:
-        current_category = get_object_or_404(Category, slug=slug)
-        qs = qs.filter(category=current_category)
+def event_list(request):
+    # Базовый queryset: только опубликованные и активные
+    qs = (Event.objects
+          .filter(status=Event.Status.PUBLISHED, is_active=True)
+          .select_related('category', 'organizer')
+          .prefetch_related('event_tariffs__tariff'))
 
+    categories = Category.objects.all().order_by('name')
+
+    # Параметры GET
+    q = (request.GET.get('q') or '').strip()
+    category_slug = (request.GET.get('category') or '').strip()
+    city = (request.GET.get('city') or request.GET.get('location') or '').strip()
+    date_from = request.GET.get('date_from') or ''
+    date_to = request.GET.get('date_to') or ''
+    sort = (request.GET.get('sort') or 'soon').strip()
+
+    # Фильтры
+    if category_slug:
+        qs = qs.filter(category__slug=category_slug)
+
+    if city:
+        qs = qs.filter(location__icontains=city)
+
+    if date_from:
+        df = parse_date(date_from)
+        if df:
+            qs = qs.filter(starts_at__date__gte=df)
+
+    if date_to:
+        dt = parse_date(date_to)
+        if dt:
+            qs = qs.filter(starts_at__date__lte=dt)
+
+    # Поиск: приоритет "сначала по названию", затем "по словам из описания"
+    # Разбиваем запрос на слова и строим OR-условия
+    rank_applied = False
+    if q:
+        words = [w for w in q.replace(',', ' ').split() if w]
+        q_title = Q()
+        q_desc = Q()
+        for w in words:
+            q_title |= Q(title__icontains=w)
+            q_desc |= Q(description__icontains=w)
+
+        # Фильтруем по совпадению в названии ИЛИ описании
+        qs = qs.filter(q_title | q_desc)
+
+        # Ранжируем: 0 — попало по названию, 1 — только по описанию
+        qs = qs.annotate(
+            _rank=Case(
+                When(q_title, then=Value(0)),
+                When(q_desc, then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        )
+        rank_applied = True
+
+    # Сортировки
+    # cheap -> по минимальной цене тарифа; popular -> по просмотрам; soon -> по дате начала
+    if sort == 'cheap':
+        qs = qs.annotate(min_price=Min('event_tariffs__price'))
+        primary_order = 'min_price'
+    elif sort == 'popular':
+        primary_order = '-views_count'
+    else:
+        sort = 'soon'
+        primary_order = 'starts_at'
+
+    # Если есть поиск — сначала ранг, затем заданная сортировка
+    if rank_applied:
+        qs = qs.order_by('_rank', primary_order, 'id')
+    else:
+        qs = qs.order_by(primary_order, 'id')
+
+    # Пагинация
     paginator = Paginator(qs, 12)
-    page = request.GET.get("page")
+    page = request.GET.get('page')
     events_page = paginator.get_page(page)
 
-    # ID избранного на текущей странице
+    # Избранное: ID событий на текущей странице
     favorite_ids = set()
     if request.user.is_authenticated:
         ids_on_page = [e.id for e in events_page.object_list]
         favorite_ids = set(
-            Favorite.objects.filter(user=request.user, event_id__in=ids_on_page)
-                            .values_list('event_id', flat=True)
+            Favorite.objects
+                    .filter(user=request.user, event_id__in=ids_on_page)
+                    .values_list('event_id', flat=True)
         )
 
-    categories = Category.objects.order_by("name")
-    return render(request, "events/list.html", {
-        "events": events_page,
-        "categories": categories,
-        "current_category": current_category,
-        "favorite_ids": favorite_ids,  # <-- добавили
-    })
+    # Базовая строка запроса без page для ссылок пагинации
+    params = request.GET.copy()
+    params.pop('page', None)
+    base_qs = params.urlencode()
+
+    ctx = {
+        'events': events_page,
+        'categories': categories,
+        'current_category': category_slug,
+        'q': q,
+        'city': city,
+        'date_from': date_from,
+        'date_to': date_to,
+        'sort': sort,
+        'favorite_ids': favorite_ids,
+        'base_qs': base_qs,
+    }
+    return render(request, 'events/list.html', ctx)
 
 
 def event_detail(request, slug: str):
