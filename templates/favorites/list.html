@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Избранное{% endblock %}
+{% block content %}
+  <h1>Избранные мероприятия</h1>
+
+  {% if favorites %}
+    <ul class="cards">
+      {% for f in favorites %}
+        {% with e=f.event %}
+        <li class="card">
+          <h3><a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a></h3>
+          <p><strong>Категория:</strong> {{ e.category.name }}</p>
+          <p><strong>Дата:</strong> {{ e.starts_at|date:"d.m.Y H:i" }}</p>
+          <p><strong>Место:</strong> {{ e.location }}</p>
+          <form action="{% url 'favorites:remove' e.id %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit">Убрать из избранного</button>
+          </form>
+        </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+
+    {% if favorites.has_other_pages %}
+    <div class="pagination">
+      {% if favorites.has_previous %}<a href="?page={{ favorites.previous_page_number }}">← Назад</a>{% endif %}
+      Стр. {{ favorites.number }} из {{ favorites.paginator.num_pages }}
+      {% if favorites.has_next %}<a href="?page={{ favorites.next_page_number }}">Вперёд →</a>{% endif %}
+    </div>
+    {% endif %}
+
+  {% else %}
+    <p>Список пуст. Перейдите к <a href="{% url 'events:list' %}">мероприятиям</a>.</p>
+  {% endif %}
+{% endblock %}

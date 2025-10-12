@@ -24,6 +24,19 @@
           <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
           — {{ e.category.name }} — {{ e.starts_at|date:"d.m.Y H:i" }}
           {% if e.available_tickets %} — Остаток: {{ e.available_tickets }}{% endif %}
+          
+          {% comment %}Избранное — отметка/кнопка в списке{% endcomment %}
+          {% if user.is_authenticated %}
+            {% if e.id in favorite_ids %}
+              <span title="В избранном">★</span>
+            {% else %}
+              <form action="{% url 'favorites:add' e.id %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" title="В избранное" style="background:none;border:none;cursor:pointer;font-size:16px;">☆</button>
+              </form>
+            {% endif %}
+          {% endif %}
         </li>
       {% endfor %}
     </ul>

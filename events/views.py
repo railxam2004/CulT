@@ -1,10 +1,10 @@
-# events/views.py
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from tickets.models import Ticket
+from favorites.models import Favorite
 import csv
 from django.http import HttpResponse
 from django.utils import timezone
@@ -47,11 +47,21 @@ def event_list(request, slug=None):
     page = request.GET.get("page")
     events_page = paginator.get_page(page)
 
+    # ID избранного на текущей странице
+    favorite_ids = set()
+    if request.user.is_authenticated:
+        ids_on_page = [e.id for e in events_page.object_list]
+        favorite_ids = set(
+            Favorite.objects.filter(user=request.user, event_id__in=ids_on_page)
+                            .values_list('event_id', flat=True)
+        )
+
     categories = Category.objects.order_by("name")
     return render(request, "events/list.html", {
         "events": events_page,
         "categories": categories,
         "current_category": current_category,
+        "favorite_ids": favorite_ids,  # <-- добавили
     })
 
 
@@ -66,8 +76,17 @@ def event_detail(request, slug: str):
     Event.objects.filter(pk=event.pk).update(views_count=F("views_count") + 1)
     event.refresh_from_db(fields=["views_count"])
 
+    # Флаг избранного
+    is_favorited = False
+    if request.user.is_authenticated:
+        is_favorited = Favorite.objects.filter(user=request.user, event=event).exists()
+
     tariffs = event.event_tariffs.filter(is_active=True).select_related("tariff")
-    return render(request, "events/detail.html", {"event": event, "tariffs": tariffs})
+    return render(request, "events/detail.html", {
+        "event": event,
+        "tariffs": tariffs,
+        "is_favorited": is_favorited,  # <-- добавили
+    })
 
 
 # ---------- КАБИНЕТ ОРГАНИЗАТОРА ----------

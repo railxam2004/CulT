@@ -95,9 +95,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'ru'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
-TIME_ZONE = 'Europe/Moscow'  
+LANGUAGE_CODE = 'ru-ru'
+TIME_ZONE = 'Europe/Moscow'
+USE_TZ = True
+
+# Dev-почта
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 USE_I18N = True
 
@@ -122,3 +128,4 @@ AUTH_USER_MODEL = 'users.User'
 LOGIN_REDIRECT_URL = 'pages:home'
 LOGOUT_REDIRECT_URL = 'pages:home'
 LOGIN_URL = 'users:login'
+

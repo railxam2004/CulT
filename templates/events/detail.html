@@ -2,6 +2,25 @@
 {% block title %}{{ event.title }}{% endblock %}
 {% block content %}
   <h1>{{ event.title }}</h1>
+  {% comment %}Избранное — кнопка на карточке события{% endcomment %}
+{% if user.is_authenticated %}
+  {% if is_favorited %}
+    <form action="{% url 'favorites:remove' event.id %}" method="post" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit">★ В избранном (убрать)</button>
+    </form>
+  {% else %}
+    <form action="{% url 'favorites:add' event.id %}" method="post" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit">☆ В избранное</button>
+    </form>
+  {% endif %}
+{% else %}
+  <a href="{% url 'users:login' %}?next={{ request.path }}">Войдите</a>, чтобы добавить в избранное
+{% endif %}
+
   <p><strong>Категория:</strong> {{ event.category.name }}</p>
   <p><strong>Дата и время:</strong> {{ event.starts_at|date:"d.m.Y H:i" }}</p>
   {% if event.duration_minutes %}
