@@ -5,5 +5,8 @@
 <p><strong>Тариф:</strong> {{ ticket.event_tariff.tariff.name }}</p>
 <p><strong>Дата покупки:</strong> {{ ticket.created_at|date:"d.m.Y H:i" }}</p>
 <p><strong>QR-код (код):</strong> <code>{{ ticket.qr_hash }}</code></p>
-<p><em>Позже здесь появится загрузка PDF и графический QR.</em></p>
+
+<p><a href="{% url 'tickets:ticket_pdf' ticket.id %}">Скачать PDF</a></p>
+
+<p><em>В PDF встроен графический QR-код и данные билета.</em></p>
 {% endblock %}
