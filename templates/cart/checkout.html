@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Оформление заказа{% endblock %}
+{% block content %}
+<h1>Оформление заказа</h1>
+<ul>
+  {% for i in items %}
+    <li>{{ i.event.title }} — {{ i.event_tariff.tariff.name }} × {{ i.quantity }} = {{ i.subtotal|floatformat:2 }} ₽</li>
+  {% endfor %}
+</ul>
+<p><strong>К оплате: {{ total|floatformat:2 }} ₽</strong></p>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Перейти к оплате (тест)</button>
+</form>
+{% endblock %}

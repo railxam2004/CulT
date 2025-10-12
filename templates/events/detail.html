@@ -19,9 +19,16 @@
       {% for et in tariffs %}
         <li>
           {{ et.tariff.name }} — {{ et.price }} ₽
-          {% with rem=et.available_quantity|add:"-et.sales_count" %}
-            (осталось: {{ et.available_quantity|add:"-et.sales_count" }})
-          {% endwith %}
+          (осталось: {{ et.remaining }})
+          {% if user.is_authenticated %}
+            <form action="{% url 'cart:add' et.id %}" method="post" style="display:inline;">
+              {% csrf_token %}
+              <input type="number" name="quantity" min="1" max="{{ et.remaining }}" value="1" style="width:60px;">
+              <button type="submit">Купить</button>
+            </form>
+          {% else %}
+            <span> — <a href="{% url 'users:login' %}?next={{ request.path }}">Войдите</a>, чтобы купить</span>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>

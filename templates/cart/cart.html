@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Корзина{% endblock %}
+{% block content %}
+<h1>Корзина</h1>
+
+{% if items %}
+<table>
+  <thead>
+    <tr>
+      <th>Мероприятие</th>
+      <th>Тариф</th>
+      <th>Цена</th>
+      <th>Кол-во</th>
+      <th>Сумма</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for i in items %}
+    <tr>
+      <td><a href="{% url 'events:detail' i.event.slug %}">{{ i.event.title }}</a></td>
+      <td>{{ i.event_tariff.tariff.name }}</td>
+      <td>{{ i.event_tariff.price }} ₽</td>
+      <td>
+        <form action="{% url 'cart:update' i.id %}" method="post">
+          {% csrf_token %}
+          <input type="number" name="quantity" min="1" value="{{ i.quantity }}" style="width:70px">
+          <button type="submit">Обновить</button>
+        </form>
+      </td>
+      <td>{{ i.subtotal|floatformat:2 }} ₽</td>
+      <td>
+        <form action="{% url 'cart:remove' i.id %}" method="post">
+          {% csrf_token %}
+          <button type="submit">Удалить</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p><strong>Итого: {{ total|floatformat:2 }} ₽</strong></p>
+<p><a href="{% url 'cart:checkout' %}">Оформить заказ</a></p>
+{% else %}
+<p>Корзина пуста.</p>
+{% endif %}
+{% endblock %}

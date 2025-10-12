@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Оплата (тест){% endblock %}
+{% block content %}
+<h1>Оплата (тестовый режим)</h1>
+<p>Заказ № {{ order.id }} на сумму {{ order.total_price|floatformat:2 }} ₽</p>
+<p>
+  <a href="{% url 'cart:checkout_success' order.id %}">Имитация: Оплатить успешно</a> |
+  <a href="{% url 'cart:checkout_cancel' order.id %}">Имитация: Отменить</a>
+</p>
+{% endblock %}
