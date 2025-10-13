@@ -9,8 +9,7 @@
 </ul>
 <p><strong>К оплате: {{ total|floatformat:2 }} ₽</strong></p>
 
-<form method="post">
-  {% csrf_token %}
-  <button type="submit">Перейти к оплате (тест)</button>
+<form action="{% url 'payments:yookassa_start' %}" method="get">
+  <button type="submit">Перейти к оплате</button>
 </form>
 {% endblock %}

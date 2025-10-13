@@ -10,6 +10,7 @@ from events.models import EventTariff
 from .models import CartItem
 from tickets.models import Order
 from tickets.services import create_order_from_cart, finalize_order_payment
+from payments.services import get_yk_payment # ДОБАВЛЕНО: для проверки статуса оплаты
 
 @login_required
 def add_to_cart(request, event_tariff_id):
@@ -114,15 +115,32 @@ def checkout(request):
 
 
 @login_required
-def checkout_success(request, order_id):
-    order = get_object_or_404(Order, pk=order_id, user=request.user)
-    try:
-        finalize_order_payment(order, request.user)
-    except Exception as e:
-        messages.error(request, f"Не удалось завершить оплату: {e}")
-        return redirect('cart:checkout')
-    messages.success(request, "Оплата прошла успешно. Билеты готовы!")
-    return redirect('tickets:my_tickets')
+def checkout_success(request):
+    payment_id = request.session.pop('yk_payment_id', None)
+    order_id = request.session.get('yk_order_id')  # можно не вычищать, если есть своя логика
+
+    if payment_id and order_id:
+        try:
+            order = Order.objects.select_related('user').get(id=order_id)
+            # проверим статус в ЮKassa
+            p = get_yk_payment(payment_id)
+            if getattr(p, 'status', None) == 'succeeded' and order.status != Order.Status.PAID:
+                finalize_order_payment(order, order.user)
+                messages.success(request, "Оплата прошла успешно. Билеты готовы!")
+            else:
+                # Если оплата не succeeded или уже оплачено (второй заход), просто информируем
+                if order.status == Order.Status.PAID:
+                    messages.info(request, "Заказ уже был оплачен.")
+                else:
+                    messages.warning(request, "Статус платежа не подтвержден. Пожалуйста, проверьте мои билеты.")
+        except Order.DoesNotExist:
+            messages.error(request, "Заказ не найден.")
+        except Exception:
+            # не роняем страницу успеха, но информируем
+            messages.error(request, "Произошла ошибка при проверке платежа.")
+            pass # Игнорируем исключение, как в примере
+
+    return render(request, "cart/success.html")
 
 
 @login_required

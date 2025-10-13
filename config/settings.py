@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'cart',
     'pages',
     'dashboard',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -159,3 +160,12 @@ LOGOUT_REDIRECT_URL = 'pages:home'
 LOGIN_URL = 'users:login'
 
 
+# --- YooKassa ---
+YOO_KASSA_SHOP_ID = os.getenv('YOO_KASSA_SHOP_ID', '')
+YOO_KASSA_SECRET_KEY = os.getenv('YOO_KASSA_SECRET_KEY', '')
+YOO_KASSA_IS_TEST = os.getenv('YOO_KASSA_IS_TEST', 'true').lower() == 'true'
+YOO_KASSA_RETURN_URL = os.getenv('YOO_KASSA_RETURN_URL', SITE_URL + '/checkout/success/')
+YOO_KASSA_WEBHOOK_URL = os.getenv('YOO_KASSA_WEBHOOK_URL', SITE_URL + '/payments/yookassa/webhook/')
+
+# для локальной разработки можно пропускать auth вебхука (чтобы не заморачиваться с Basic подписью)
+YOO_KASSA_SKIP_WEBHOOK_AUTH = os.getenv('YOO_KASSA_SKIP_WEBHOOK_AUTH', 'true').lower() == 'true'

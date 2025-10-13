@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Оплата успешно завершена{% endblock %}
+{% block content %}
+  <h1>✅ Оплата прошла успешно!</h1>
+  <p>Ваши билеты готовы. Они высланы вам на почту.</p>
+  <p><a href="{% url 'tickets:my_tickets' %}">Перейти к моим билетам</a></p>
+{% endblock %}
