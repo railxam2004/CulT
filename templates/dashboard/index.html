@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Панель{% endblock %}
+
+{% block content %}
+  <h1>Панель {% if is_admin %}(администратор){% else %}(организатор){% endif %}</h1>
+<p style="margin-bottom:10px;">
+  <a href="{% url 'pages:home' %}" style="font-size:14px;">← На главную</a>
+</p>
+
+  <!-- Карточки метрик -->
+  <div class="cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:12px 0;">
+    <div class="card" style="border:1px solid #eee;padding:12px;border-radius:8px;">
+      <div style="font-size:12px;color:#666;">Выручка</div>
+      <div style="font-size:20px;font-weight:600;">{{ cards.revenue_total }} ₽</div>
+    </div>
+    <div class="card" style="border:1px solid #eee;padding:12px;border-radius:8px;">
+      <div style="font-size:12px;color:#666;">Билетов продано</div>
+      <div style="font-size:20px;font-weight:600;">{{ cards.sold_total }}</div>
+    </div>
+    <div class="card" style="border:1px solid #eee;padding:12px;border-radius:8px;">
+      <div style="font-size:12px;color:#666;">Осталось билетов</div>
+      <div style="font-size:20px;font-weight:600;">{{ cards.remaining_total }}</div>
+    </div>
+    <div class="card" style="border:1px solid #eee;padding:12px;border-radius:8px;">
+      <div style="font-size:12px;color:#666;">Посещено (check‑in)</div>
+      <div style="font-size:20px;font-weight:600;">{{ cards.checkins_total }}</div>
+    </div>
+  </div>
+
+  <!-- Графики -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+    <div style="border:1px solid #eee;border-radius:8px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;">Продажи за 30 дней (выручка)</h3>
+      </div>
+      <canvas id="chart-revenue" width="900" height="300"></canvas>
+      <div style="margin-top:8px;color:#777;font-size:12px;">Дневная выручка, ₽</div>
+    </div>
+
+    <div style="border:1px solid #eee;border-radius:8px;padding:12px;">
+      <h3 style="margin:0 0 6px 0;">Категории по выручке (топ‑8)</h3>
+      <canvas id="chart-cats" width="450" height="300"></canvas>
+    </div>
+  </div>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-top:12px;">
+    <h3 style="margin:0 0 6px 0;">Продажи за 30 дней (билеты)</h3>
+    <canvas id="chart-sold" width="900" height="250"></canvas>
+    <div style="margin-top:8px;color:#777;font-size:12px;">Количество билетов в день</div>
+  </div>
+
+  <!-- Таблица: Топ событий -->
+  <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;">
+    <div style="border:1px solid #eee;border-radius:8px;padding:12px;">
+      <h3 style="margin:0 0 8px 0;">Топ событий по выручке</h3>
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="text-align:left;border-bottom:1px solid #eee;">
+              <th style="padding:8px;">Событие</th>
+              <th style="padding:8px;">Продано</th>
+              <th style="padding:8px;">Выручка</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in top_events %}
+              <tr style="border-bottom:1px solid #f5f5f5;">
+                <td style="padding:8px;">
+                  <a href="{% url 'events:detail' row.event__slug %}">{{ row.event__title }}</a>
+                </td>
+                <td style="padding:8px;">{{ row.sold }}</td>
+                <td style="padding:8px;">{{ row.revenue }} ₽</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" style="padding:8px;color:#777;">Нет данных</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Таблица: Сводка по событиям -->
+  <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-top:12px;">
+    <h3 style="margin:0 0 8px 0;">Сводка по событиям</h3>
+    <div style="overflow:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid #eee;">
+            <th style="padding:8px;">Событие</th>
+            <th style="padding:8px;">Категория</th>
+            <th style="padding:8px;">Дата</th>
+            <th style="padding:8px;">Локация</th>
+            <th style="padding:8px;">Продано</th>
+            <th style="padding:8px;">Осталось</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events_summary %}
+            <tr style="border-bottom:1px solid #f5f5f5;">
+              <td style="padding:8px;"><a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a></td>
+              <td style="padding:8px;">{{ e.category }}</td>
+              <td style="padding:8px;">{{ e.starts_at|date:"d.m.Y H:i" }}</td>
+              <td style="padding:8px;">{{ e.location }}</td>
+              <td style="padding:8px;">{{ e.sold }}</td>
+              <td style="padding:8px;">{{ e.remaining }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" style="padding:8px;color:#777;">Нет данных</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Данные для графиков -->
+  {{ ts_labels|json_script:"ts-labels" }}
+  {{ ts_revenue|json_script:"ts-revenue" }}
+  {{ ts_sold|json_script:"ts-sold" }}
+  {{ cat_labels|json_script:"cat-labels" }}
+  {{ cat_values|json_script:"cat-values" }}
+
+  <script src="{% static 'js/chart.js' %}"></script>
+  <script>
+    // Временной ряд: выручка
+    MiniCharts.renderLine('chart-revenue',
+      JSON.parse(document.getElementById('ts-labels').textContent),
+      JSON.parse(document.getElementById('ts-revenue').textContent),
+      { units: '₽' }
+    );
+
+    // Временной ряд: количество билетов
+    MiniCharts.renderLine('chart-sold',
+      JSON.parse(document.getElementById('ts-labels').textContent),
+      JSON.parse(document.getElementById('ts-sold').textContent),
+      { units: 'шт' }
+    );
+
+    // Горизонтальные бары по категориям
+    MiniCharts.renderHBar('chart-cats',
+      JSON.parse(document.getElementById('cat-labels').textContent),
+      JSON.parse(document.getElementById('cat-values').textContent),
+      { units: '₽' }
+    );
+  </script>
+{% endblock %}
