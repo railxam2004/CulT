@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
-{% block title %}Главная — CulT{% endblock %}
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
 {% block content %}
   <h1>Добро пожаловать в CulT</h1>
-  <p>Актуальные мероприятия скоро здесь.</p>
+  <p>Актуальные мероприятия — в разделе <a href="{% url 'events:list' %}">События</a>.</p>
 {% endblock %}

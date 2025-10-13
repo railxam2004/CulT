@@ -1,5 +1,42 @@
-{% extends 'base.html' %}
-{% block title %}Главная — CulT{% endblock %}
+{% extends "base.html" %}
+{% block title %}Контакты{% endblock %}
 {% block content %}
   <h1>Контакты</h1>
+  <p>Оставьте вопрос — мы свяжемся с вами по e‑mail или телефону.</p>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div style="color:#b00;margin-bottom:10px;">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div style="margin-bottom:10px;">
+      {{ form.name.label_tag }}<br>
+      {{ form.name }}
+      {{ form.name.errors }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.email.label_tag }}<br>
+      {{ form.email }}
+      {{ form.email.errors }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.phone.label_tag }}<br>
+      {{ form.phone }}
+      {{ form.phone.errors }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.subject.label_tag }}<br>
+      {{ form.subject }}
+      {{ form.subject.errors }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.message.label_tag }}<br>
+      {{ form.message }}
+      {{ form.message.errors }}
+    </div>
+
+    <button type="submit">Отправить</button>
+  </form>
 {% endblock %}
