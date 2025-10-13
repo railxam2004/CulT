@@ -12,6 +12,13 @@ from django.http import HttpResponse
 from django.utils import timezone
 from .forms import EventForm, EventTariffFormSet, EventEditRequestForm # ИЗМЕНЕНО: добавлен EventEditRequestForm
 from .models import Category, Event, EventEditRequest # ИЗМЕНЕНО: добавлен EventEditRequest
+import json
+from django.http import JsonResponse, HttpResponseNotAllowed
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone
+from .services.ai import generate_event_description, YandexGPTError
+
 
 
 def _require_organizer(request):
@@ -32,7 +39,7 @@ def _event_has_active_tariff(event: Event) -> bool:
 
 # ---------- ПУБЛИЧНАЯ ВИТРИНА ----------
 
-def event_list(request):
+def event_list(request, slug=None):
     # Базовый queryset: только опубликованные и активные
     qs = (Event.objects
           .filter(status=Event.Status.PUBLISHED, is_active=True)
@@ -306,3 +313,48 @@ def my_event_tickets_export(request, pk: int):
         writer.writerow([t.id, buyer, email, tariff, price, used, created, t.qr_hash])
 
     return response
+
+@login_required
+@require_POST
+def generate_description_api(request):
+    # Разрешим только организаторам и админам
+    user = request.user
+    if not (getattr(user, "is_organizer", False) or user.is_staff or user.is_superuser):
+        return JsonResponse({"error": "Недостаточно прав"}, status=403)
+
+    # Простая защита от частых запросов (5 сек)
+    last_ts = request.session.get("ai_last_call_ts")
+    now_ts = timezone.now().timestamp()
+    if last_ts and now_ts - last_ts < 5:
+        return JsonResponse({"error": "Слишком часто. Попробуйте через пару секунд."}, status=429)
+    request.session["ai_last_call_ts"] = now_ts
+
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Неверный JSON"}, status=400)
+
+    # Собираем контекст: можно передать title/date/location/category/keywords
+    title = (body.get("title") or "").strip()
+    date_time = (body.get("starts_at") or "").strip()  # строка (мы не парсим тут)
+    location = (body.get("location") or "").strip()
+    category = (body.get("category_name") or "").strip()
+    keywords = (body.get("keywords") or "").strip()
+
+    if not (title or keywords):
+        return JsonResponse({"error": "Укажите как минимум название или ключевые слова"}, status=400)
+
+    # Сформируем user‑промпт из полей формы
+    parts = []
+    if title: parts.append(f"Название: {title}")
+    if category: parts.append(f"Категория: {category}")
+    if date_time: parts.append(f"Дата и время: {date_time}")
+    if location: parts.append(f"Локация: {location}")
+    if keywords: parts.append(f"Ключевые слова: {keywords}")
+    prompt = "Создай привлекательное описание мероприятия по данным:\n" + "\n".join(parts)
+
+    try:
+        text = generate_event_description(prompt)
+        return JsonResponse({"text": text})
+    except YandexGPTError as e:
+        return JsonResponse({"error": str(e)}, status=503)

@@ -29,17 +29,6 @@
     <a href="{% url 'events:list' %}">Сбросить</a>
   </form>
 
-  <div>
-    <strong>Категории:</strong>
-    <a href="{% url 'events:list' %}">Все</a>
-    {% for c in categories %}
-      {% if current_category and c.pk == current_category.pk %}
-        | <strong>{{ c.name }}</strong>
-      {% else %}
-        | <a href="{% url 'events:category' c.slug %}">{{ c.name }}</a>
-      {% endif %}
-    {% endfor %}
-  </div>
 
   <hr>
 

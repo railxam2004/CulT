@@ -169,3 +169,8 @@ YOO_KASSA_WEBHOOK_URL = os.getenv('YOO_KASSA_WEBHOOK_URL', SITE_URL + '/payments
 
 # для локальной разработки можно пропускать auth вебхука (чтобы не заморачиваться с Basic подписью)
 YOO_KASSA_SKIP_WEBHOOK_AUTH = os.getenv('YOO_KASSA_SKIP_WEBHOOK_AUTH', 'true').lower() == 'true'
+
+
+YANDEX_GPT_API_KEY = os.getenv('YANDEX_GPT_API_KEY', '')
+YANDEX_GPT_FOLDER_ID = os.getenv('YANDEX_GPT_FOLDER_ID', '')
+YANDEX_GPT_TIMEOUT = int(os.getenv('YANDEX_GPT_TIMEOUT', '25'))
