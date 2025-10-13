@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Изменение на модерации{% endblock %}
+{% block content %}
+  <h1>Изменение на модерации</h1>
+  <p>По событию «{{ event.title }}» уже есть заявка на модерации.</p>
+
+  <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-top:10px;">
+    <div><strong>Отправлено:</strong> {{ pending.created_at|date:"d.m.Y H:i" }}</div>
+    <div><strong>Новая категория:</strong> {{ pending.new_category.name }}</div>
+    <div><strong>Новое описание:</strong></div>
+    <div style="white-space:pre-wrap;border:1px dashed #ddd;padding:8px;border-radius:6px;margin-top:6px;">
+      {{ pending.new_description }}
+    </div>
+    {% if pending.new_image %}
+      <div style="margin-top:8px;">Новое фото:</div>
+      <img src="{{ pending.new_image.url }}" alt="" style="max-width:320px;border:1px solid #ddd;border-radius:6px;">
+    {% endif %}
+  </div>
+
+  <p style="margin-top:12px;">
+    <a href="{% url 'events:my_events' %}">← Вернуться к моим событиям</a>
+  </p>
+{% endblock %}

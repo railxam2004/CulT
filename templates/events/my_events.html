@@ -18,16 +18,20 @@
       <tbody>
         {% for e in events %}
           <tr>
-            <td>{{ e.title }}</td>
+            <td>
+              {{ e.title }}
+              {% if e.has_pending_edit %}
+                <span style="font-size:12px;color:#915;">(изменение на модерации)</span>
+              {% endif %}
+            </td>
             <td>{{ e.starts_at|date:"d.m.Y H:i" }}</td>
             <td>{{ e.get_status_display }}</td>
             <td>{{ e.available_tickets }}</td>
             <td>
-  <a href="{% url 'events:edit' e.pk %}">Редактировать</a> |
-  <a href="{% url 'events:my_event_tickets' e.pk %}">Билеты</a> |
-  <a href="{% url 'tickets:scan_event' e.pk %}">Сканировать</a>
-</td>
-
+              <a href="{% url 'events:edit' e.pk %}">Редактировать</a> |
+              <a href="{% url 'events:my_event_tickets' e.pk %}">Билеты</a> |
+              <a href="{% url 'tickets:scan_event' e.pk %}">Сканировать</a>
+            </td>
           </tr>
         {% endfor %}
       </tbody>

@@ -3,7 +3,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin.helpers import ActionForm
 from django.utils import timezone
-from .models import Category, Tariff, Event, EventTariff
+from .models import Category, Tariff, Event, EventTariff, EventEditRequest
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -122,3 +122,57 @@ class EventAdmin(admin.ModelAdmin):
 
     action_form = EventActionForm
     actions = [mark_pending, publish_events, reject_events, mark_draft]
+
+# --- АДМИНКА ДЛЯ EVENTEDITREQUEST ---
+@admin.register(EventEditRequest)
+class EventEditRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'event', 'submitted_by', 'status', 'created_at', 'reviewed_at')
+    list_filter = ('status', 'created_at', 'new_category')
+    search_fields = ('event__title', 'submitted_by__username', 'submitted_by__email')
+    # Добавил 'new_description' и 'new_image' для просмотра в деталях, но сделал readonly
+    readonly_fields = ('event', 'submitted_by', 'created_at', 'reviewed_at', 'reviewed_by',
+                       'new_description', 'new_category', 'new_image')
+    actions = ['approve_requests', 'reject_requests']
+    
+    # Чтобы поля были видны в админке
+    fieldsets = (
+        (None, {
+            "fields": ('event', 'submitted_by', 'status', 'created_at', 'reviewed_at', 'reviewed_by', 'comment'),
+        }),
+        ("Предложенные изменения", {
+            "fields": ('new_description', 'new_category', 'new_image'),
+        }),
+    )
+
+    @admin.action(description="Одобрить выбранные изменения")
+    def approve_requests(self, request, queryset):
+        qs = queryset.filter(status=EventEditRequest.Status.PENDING)
+        count = 0
+        for req in qs.select_related('event', 'new_category'):
+            e = req.event
+            # применяем поля
+            e.description = req.new_description
+            e.category = req.new_category
+            if req.new_image:
+                # Если новое изображение загружено, заменяем его.
+                e.image = req.new_image
+            # Сохраняем событие
+            e.save(update_fields=['description', 'category', 'image'])
+            
+            # помечаем заявку
+            req.status = EventEditRequest.Status.APPROVED
+            req.reviewed_by = request.user
+            req.reviewed_at = timezone.now()
+            req.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+            count += 1
+        self.message_user(request, f"Одобрено заявок: {count}")
+
+    @admin.action(description="Отклонить выбранные изменения")
+    def reject_requests(self, request, queryset):
+        qs = queryset.filter(status=EventEditRequest.Status.PENDING)
+        updated = qs.update(
+            status=EventEditRequest.Status.REJECTED,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now()
+        )
+        self.message_user(request, f"Отклонено заявок: {updated}")

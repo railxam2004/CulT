@@ -2,8 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.text import slugify
 
-from .models import Event, EventTariff
-
+from .models import Event, EventTariff, EventEditRequest
 
 class EventForm(forms.ModelForm):
     # Удобный ввод даты/времени
@@ -59,3 +58,15 @@ EventTariffFormSet = inlineformset_factory(
     validate_min=False  # можно True, если хочешь строго требовать ≥1
 )
 
+class EventEditRequestForm(forms.ModelForm):
+    class Meta:
+        model = EventEditRequest
+        fields = ['new_description', 'new_category', 'new_image']
+        labels = {
+            'new_description': 'Описание',
+            'new_category': 'Категория',
+            'new_image': 'Новое фото (опционально)',
+        }
+        widgets = {
+            'new_description': forms.Textarea(attrs={'rows': 8}),
+        }

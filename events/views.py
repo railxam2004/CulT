@@ -10,10 +10,8 @@ from favorites.models import Favorite
 import csv
 from django.http import HttpResponse
 from django.utils import timezone
-
-
-from .forms import EventForm, EventTariffFormSet
-from .models import Category, Event
+from .forms import EventForm, EventTariffFormSet, EventEditRequestForm # ИЗМЕНЕНО: добавлен EventEditRequestForm
+from .models import Category, Event, EventEditRequest # ИЗМЕНЕНО: добавлен EventEditRequest
 
 
 def _require_organizer(request):
@@ -33,9 +31,6 @@ def _event_has_active_tariff(event: Event) -> bool:
 
 
 # ---------- ПУБЛИЧНАЯ ВИТРИНА ----------
-
-from django.db.models import Q, Case, When, Value, IntegerField, Min
-from django.utils.dateparse import parse_date
 
 def event_list(request):
     # Базовый queryset: только опубликованные и активные
@@ -168,7 +163,7 @@ def event_detail(request, slug: str):
     return render(request, "events/detail.html", {
         "event": event,
         "tariffs": tariffs,
-        "is_favorited": is_favorited,  # <-- добавили
+        "is_favorited": is_favorited,
     })
 
 
@@ -176,11 +171,16 @@ def event_detail(request, slug: str):
 
 @login_required
 def my_events(request):
-    if not _require_organizer(request):
-        return redirect("users:profile")
+    qs = (Event.objects
+          .filter(organizer=request.user)
+          .select_related('category')
+          .prefetch_related('edit_requests'))
 
-    qs = Event.objects.filter(organizer=request.user).order_by("-created_at")
-    return render(request, "events/my_list.html", {"events": qs})
+    # добавляем флаг наличия активной заявки
+    for e in qs:
+        e.has_pending_edit = e.edit_requests.filter(status='pending').exists()
+
+    return render(request, "events/my_events.html", {"events": qs})
 
 
 @login_required
@@ -209,7 +209,7 @@ def my_event_create(request):
                         )
                 else:
                     messages.success(request, "Черновик события сохранён.")
-                return redirect("events:my_list")
+                return redirect("events:my_events")
             else:
                 # Покажем ошибки формсета не теряя созданный черновик
                 messages.error(request, "Проверьте тарифы: есть ошибки в форме.")
@@ -230,44 +230,36 @@ def my_event_create(request):
 
 @login_required
 def my_event_edit(request, pk: int):
-    if not _require_organizer(request):
-        return redirect("users:profile")
-
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
 
+    # если уже есть активная заявка — не даём создать вторую
+    pending = event.edit_requests.filter(status=EventEditRequest.Status.PENDING).first()
+    if pending:
+        messages.info(request, "По этому мероприятию уже есть заявка на модерации. Дождитесь решения.")
+        return render(request, "events/edit_pending.html", {"event": event, "pending": pending})
+
     if request.method == "POST":
-        form = EventForm(request.POST, request.FILES, instance=event)
-        formset = EventTariffFormSet(request.POST, instance=event)
-        if form.is_valid() and formset.is_valid():
-            event = form.save(organizer=request.user, commit=True)
-            formset.save()
-
-            if "submit_for_moderation" in request.POST:
-                if event.status in (Event.Status.DRAFT, Event.Status.REJECTED):
-                    if _event_has_active_tariff(event):
-                        event.status = Event.Status.PENDING
-                        event.save(update_fields=["status"])
-                        messages.success(request, "Событие отправлено на модерацию.")
-                    else:
-                        messages.warning(
-                            request,
-                            "Нельзя отправить на модерацию без активных тарифов с положительным остатком."
-                        )
-                else:
-                    messages.info(request, "Событие уже на модерации или опубликовано.")
-            else:
-                messages.success(request, "Изменения сохранены.")
-            return redirect("events:my_list")
+        form = EventEditRequestForm(request.POST, request.FILES)
+        if form.is_valid():
+            req = form.save(commit=False)
+            req.event = event
+            req.submitted_by = request.user
+            req.status = EventEditRequest.Status.PENDING
+            req.save()
+            messages.success(request, "Изменения отправлены на модерацию. После одобрения они появятся на сайте.")
+            return redirect("events:my_events")  # или на детальную: reverse("events:detail", args=[event.slug])
     else:
-        form = EventForm(instance=event)
-        formset = EventTariffFormSet(instance=event)
+        # заполним начальными данными из текущего события
+        form = EventEditRequestForm(initial={
+            "new_description": event.description,
+            "new_category": event.category_id,
+        })
 
-    return render(request, "events/form.html", {
-        "form": form,
-        "formset": formset,
-        "is_edit": True,
+    return render(request, "events/edit_limited.html", {
         "event": event,
+        "form": form,
     })
+
 
 @login_required
 def my_event_tickets(request, pk: int):
@@ -279,6 +271,7 @@ def my_event_tickets(request, pk: int):
                .filter(event=event)
                .order_by('-created_at'))
     return render(request, 'events/my_event_tickets.html', {'event': event, 'tickets': tickets})
+
 
 @login_required
 def my_event_tickets_export(request, pk: int):

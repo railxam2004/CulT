@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Изменение события (на модерацию){% endblock %}
+{% block content %}
+  <h1>Предложить изменения для: «{{ event.title }}»</h1>
+  <p style="color:#666;">Можно изменять только <strong>описание</strong>, <strong>категорию</strong> и <strong>фото</strong>.
+  После отправки модератор проверит правки. Пока они на модерации, на сайте остаётся прежняя версия.</p>
+
+  <div style="margin: 8px 0 16px;">
+    {% if event.image %}
+      <div>Текущее фото:</div>
+      <img src="{{ event.image.url }}" alt="" style="max-width:320px;border:1px solid #ddd;border-radius:6px;">
+    {% endif %}
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div style="margin-bottom:10px;">
+      {{ form.new_category.label_tag }}<br>
+      {{ form.new_category }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.new_description.label_tag }}<br>
+      {{ form.new_description }}
+    </div>
+    <div style="margin-bottom:10px;">
+      {{ form.new_image.label_tag }}<br>
+      {{ form.new_image }}
+      <div style="color:#777;font-size:12px;">Если не загружать новое фото — останется прежнее.</div>
+    </div>
+    <button type="submit">Отправить на модерацию</button>
+    <a href="{% url 'events:my_events' %}">Отмена</a>
+  </form>
+{% endblock %}
