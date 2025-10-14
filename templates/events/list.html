@@ -1,106 +1,101 @@
 {% extends 'base.html' %}
 {% block title %}Мероприятия{% endblock %}
+
 {% block content %}
-  <h1>Мероприятия</h1>
+<h1>Мероприятия</h1>
 
-  <!-- ДОБАВЛЕНО: Форма фильтров -->
-  <form method="get" class="filters" style="margin-bottom: 1rem;">
-    <input type="text" name="q" placeholder="Поиск по названию/описанию" value="{{ q }}">
+<!-- 🔍 Форма фильтров -->
+<form method="get" class="filters" style="margin-bottom: 1rem;">
+  <input type="text" name="q" placeholder="Поиск по названию/описанию" value="{{ q }}" style="width:220px;">
 
-    <select name="category" aria-label="Категория">
-      <option value="">Все категории</option>
-      {% for c in categories %}
-        <option value="{{ c.slug }}" {% if c.slug == current_category %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
+  <select name="category" aria-label="Категория">
+    <option value="">Все категории</option>
+    {% for c in categories %}
+      <option value="{{ c.slug }}" {% if c.slug == current_category %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
 
-    <input type="date" name="date_from" value="{{ date_from }}" aria-label="С">
-    <input type="date" name="date_to" value="{{ date_to }}" aria-label="По">
+  <input type="date" name="date_from" value="{{ date_from }}" aria-label="С">
+  <input type="date" name="date_to" value="{{ date_to }}" aria-label="По">
 
-    <input type="text" name="city" placeholder="Город/локация" value="{{ city }}">
+  <input type="text" name="city" placeholder="Город/локация" value="{{ city }}" style="width:180px;">
 
-    <select name="sort" aria-label="Сортировка">
-      <option value="soon" {% if sort == 'soon' %}selected{% endif %}>Скоро</option>
-      <option value="popular" {% if sort == 'popular' %}selected{% endif %}>Популярные</option>
-      <option value="cheap" {% if sort == 'cheap' %}selected{% endif %}>Дешевле</option>
-    </select>
+  <select name="sort" aria-label="Сортировка">
+    <option value="soon" {% if sort == 'soon' %}selected{% endif %}>Скоро</option>
+    <option value="popular" {% if sort == 'popular' %}selected{% endif %}>Популярные</option>
+    <option value="cheap" {% if sort == 'cheap' %}selected{% endif %}>Дешевле</option>
+  </select>
 
-    <button type="submit">Применить</button>
-    <a href="{% url 'events:list' %}">Сбросить</a>
-  </form>
+  <button type="submit">Применить</button>
+  <a href="{% url 'events:list' %}">Сбросить</a>
+</form>
 
+<hr>
 
-  <hr>
-
-  {% if events %}
-    <ul>
-      {% for e in events %}
-        <!-- ДОБАВЛЕНО: article с улучшенной разметкой -->
-        <article class="event-card" style="margin-bottom: 1rem;">
-          <h3 style="margin: 0;">
-            <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
-            {% if user.is_authenticated and e.id in favorite_ids %}
-              <span title="В избранном">★</span>
-            {% endif %}
-          </h3>
-          <p style="margin: .25rem 0 .5rem 0;">
-            {{ e.starts_at|date:"d.m.Y H:i" }} — {{ e.location }}
-            {% if e.min_price %} • от {{ e.min_price }} ₽{% endif %}
+<!-- 🎭 Список мероприятий -->
+{% if events %}
+  <div class="event-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px;">
+    {% for e in events %}
+      <article class="event-card"
+               style="border:1px solid #ddd; border-radius:10px; padding:12px; background:#fafafa; transition:box-shadow .2s;">
+        <a href="{% url 'events:detail' e.slug %}"
+           style="text-decoration:none; color:inherit;">
+          <h3 style="margin:0 0 6px 0; font-size:18px;">{{ e.title }}</h3>
+          <p style="margin:0; color:#666; font-size:14px;">
+            {{ e.category.name }} • {{ e.starts_at|date:"d.m.Y H:i" }}
           </p>
-        </article>
-        
-        <!-- Оригинальный li оставлен для совместимости -->
-        <li>
-          <a href="{% url 'events:detail' e.slug %}">{{ e.title }}</a>
-          — {{ e.category.name }} — {{ e.starts_at|date:"d.m.Y H:i" }}
-          {% if e.available_tickets %} — Остаток: {{ e.available_tickets }}{% endif %}
-          
-          {% comment %}Избранное — отметка/кнопка в списке{% endcomment %}
+          {% if e.location %}
+            <p style="margin:4px 0 6px; color:#777; font-size:13px;">{{ e.location }}</p>
+          {% endif %}
+          {% if e.min_price %}
+            <p style="font-weight:bold; color:#333;">от {{ e.min_price }} ₽</p>
+          {% endif %}
+        </a>
+
+        <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
           {% if user.is_authenticated %}
             {% if e.id in favorite_ids %}
-              <span title="В избранном">★</span>
+              <form action="{% url 'favorites:remove' e.id %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button title="Убрать из избранного"
+                        style="background:none; border:none; color:#e7b400; font-size:20px; cursor:pointer;">★</button>
+              </form>
             {% else %}
               <form action="{% url 'favorites:add' e.id %}" method="post" style="display:inline;">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <button type="submit" title="В избранное" style="background:none;border:none;cursor:pointer;font-size:16px;">☆</button>
+                <button title="Добавить в избранное"
+                        style="background:none; border:none; color:#ccc; font-size:20px; cursor:pointer;">☆</button>
               </form>
             {% endif %}
           {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
 
-    <!-- ДОБАВЛЕНО: Улучшенная пагинация с сохранением параметров -->
-    {% if events.has_other_pages %}
-      <nav class="pagination" aria-label="Пагинация" style="margin-top: 1rem;">
-        {% if events.has_previous %}
-          <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.previous_page_number }}">← Назад</a>
-        {% endif %}
-        <span style="margin: 0 .5rem;">Стр. {{ events.number }} из {{ events.paginator.num_pages }}</span>
-        {% if events.has_next %}
-          <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.next_page_number }}">Вперёд →</a>
-        {% endif %}
-      </nav>
-    {% endif %}
-
-    <!-- Оригинальная пагинация оставлена для совместимости -->
-    {% if events.has_other_pages %}
-      <div>
-        {% if events.has_previous %}
-          <a href="?page={{ events.previous_page_number }}">← Назад</a>
-        {% endif %}
-        Стр. {{ events.number }} из {{ events.paginator.num_pages }}
-        {% if events.has_next %}
-          <a href="?page={{ events.next_page_number }}">Вперёд →</a>
-        {% endif %}
-      </div>
-    {% endif %}
-  {% else %}
-    <p>Пока нет мероприятий.</p>
+  <!-- 📄 Пагинация -->
+  {% if events.has_other_pages %}
+    <nav class="pagination" aria-label="Пагинация" style="margin-top: 1rem; text-align:center;">
+      {% if events.has_previous %}
+        <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.previous_page_number }}">← Назад</a>
+      {% endif %}
+      <span style="margin:0 .5rem;">Стр. {{ events.number }} из {{ events.paginator.num_pages }}</span>
+      {% if events.has_next %}
+        <a href="?{{ base_qs }}{% if base_qs %}&{% endif %}page={{ events.next_page_number }}">Вперёд →</a>
+      {% endif %}
+    </nav>
   {% endif %}
 
-  {% if user.is_authenticated and user.is_organizer %}
-    <p><a href="{% url 'events:create' %}">+ Создать мероприятие</a></p>
-  {% endif %}
+{% else %}
+  <p>Пока нет мероприятий.</p>
+{% endif %}
+
+{% if user.is_authenticated and user.is_organizer %}
+  <p style="margin-top:1.5rem;">
+    <a href="{% url 'events:create' %}" class="btn">+ Создать мероприятие</a>
+  </p>
+{% endif %}
+
 {% endblock %}

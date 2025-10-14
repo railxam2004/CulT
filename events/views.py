@@ -197,35 +197,33 @@ def my_event_create(request):
 
     if request.method == "POST":
         form = EventForm(request.POST, request.FILES)
-        if form.is_valid():
-            event = form.save(organizer=request.user, commit=True)
-            formset = EventTariffFormSet(request.POST, instance=event)
-            if formset.is_valid():
-                formset.save()
+        formset = EventTariffFormSet(request.POST)  # ✅ создаём сразу, не только после form.is_valid()
 
-                if "submit_for_moderation" in request.POST:
-                    if _event_has_active_tariff(event):
-                        event.status = Event.Status.PENDING
-                        event.save(update_fields=["status"])
-                        messages.success(request, "Событие отправлено на модерацию.")
-                    else:
-                        messages.warning(
-                            request,
-                            "Нельзя отправить на модерацию без активных тарифов с положительным остатком. "
-                            "Сохранено как черновик."
-                        )
+        if form.is_valid() and formset.is_valid():
+            event = form.save(organizer=request.user, commit=True)
+            formset.instance = event
+            formset.save()
+
+            if "submit_for_moderation" in request.POST:
+                if _event_has_active_tariff(event):
+                    event.status = Event.Status.PENDING
+                    event.save(update_fields=["status"])
+                    messages.success(request, "Событие отправлено на модерацию.")
                 else:
-                    messages.success(request, "Черновик события сохранён.")
-                return redirect("events:my_events")
+                    messages.warning(
+                        request,
+                        "Нельзя отправить на модерацию без активных тарифов с положительным остатком. "
+                        "Сохранено как черновик."
+                    )
             else:
-                # Покажем ошибки формсета не теряя созданный черновик
-                messages.error(request, "Проверьте тарифы: есть ошибки в форме.")
+                messages.success(request, "Черновик события сохранён.")
+
+            return redirect("events:my_events")
+
+        else:
+            messages.error(request, "Проверьте форму: есть ошибки в данных или тарифах.")
     else:
         form = EventForm()
-        formset = EventTariffFormSet()
-
-    # В GET при создании у формсета нет instance — создадим пустой
-    if request.method != "POST":
         formset = EventTariffFormSet()
 
     return render(request, "events/form.html", {
@@ -233,7 +231,6 @@ def my_event_create(request):
         "formset": formset,
         "is_edit": False,
     })
-
 
 @login_required
 def my_event_edit(request, pk: int):
