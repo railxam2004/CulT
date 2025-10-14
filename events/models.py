@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError # Added for clean method
+from datetime import timedelta
 
 # --- генерация уникального slug ---
 def generate_unique_slug(instance, value, slug_field_name: str = 'slug', max_len: int = 60) -> str:
@@ -121,6 +122,29 @@ class Event(models.Model):
             self.slug = generate_unique_slug(self, self.title, max_len=140) # Used max_len=140 from the model's SlugField
         super().save(*args, **kwargs)
 
+    @property
+    def ends_at(self):
+        """Время окончания = starts_at + duration_minutes (если задана)."""
+        if getattr(self, "duration_minutes", None):
+            return self.starts_at + timedelta(minutes=self.duration_minutes)
+        return self.starts_at
+
+    @property
+    def is_past(self) -> bool:
+        """Событие считается прошедшим, если время окончания < сейчас."""
+        end = self.ends_at or self.starts_at
+        return end < timezone.now()
+
+    @property
+    def is_buyable(self) -> bool:
+        """Можно ли покупать билеты на событие сейчас."""
+        return (
+            self.status == self.Status.PUBLISHED
+            and self.is_active
+            and not self.is_past
+            and (self.available_tickets or 0) > 0
+        )
+
 
 class EventTariff(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='event_tariffs', verbose_name='Событие')
@@ -185,3 +209,9 @@ class EventEditRequest(models.Model):
 
     def __str__(self):
         return f"Правки для {self.event} от {self.submitted_by} ({self.get_status_display()})"
+    
+class PendingEvent(Event):
+    class Meta:
+        proxy = True
+        verbose_name = "Событие на модерации"
+        verbose_name_plural = "События на модерации"

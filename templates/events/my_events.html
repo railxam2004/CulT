@@ -25,12 +25,24 @@
               {% endif %}
             </td>
             <td>{{ e.starts_at|date:"d.m.Y H:i" }}</td>
-            <td>{{ e.get_status_display }}</td>
+            <td>
+              {% if e.is_past %}
+                <span style="display:inline-block;padding:2px 6px;border:1px solid #ddd;border-radius:4px;background:#f6f6f6;">
+                  Прошло
+                </span>
+              {% else %}
+                {{ e.get_status_display }}
+              {% endif %}
+            </td>
             <td>{{ e.available_tickets }}</td>
             <td>
               <a href="{% url 'events:edit' e.pk %}">Редактировать</a> |
               <a href="{% url 'events:my_event_tickets' e.pk %}">Билеты</a> |
-              <a href="{% url 'tickets:scan_event' e.pk %}">Сканировать</a>
+              {% if e.is_past %}
+                <span style="color:#777;" title="Сканирование недоступно — событие прошло">Сканировать</span>
+              {% else %}
+                <a href="{% url 'tickets:scan_event' e.pk %}">Сканировать</a>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}

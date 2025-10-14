@@ -10,15 +10,13 @@
       <legend>Основное</legend>
       {{ form.as_p }}
 
-      <!-- === Блок генерации описания через YandexGPT === -->
       <button type="button" class="btn btn-outline-secondary" id="ai-generate-btn" style="margin-top:6px;">
         🤖 Сгенерировать описание (ИИ)
       </button>
       <small id="ai-hint" style="display:block;color:#666;margin-top:4px;">
         Нажмите, чтобы сгенерировать текст на основе названия, даты, места и ваших ключевых слов.
       </small>
-      <!-- ============================================= -->
-    </fieldset>
+      </fieldset>
 
     <fieldset>
       <legend>Тарифы</legend>
@@ -39,11 +37,14 @@
       <p><em>Вы можете добавить несколько тарифов, цена и квоты индивидуальны для каждого.</em></p>
     </fieldset>
 
-    <button type="submit" name="save_draft">Сохранить черновик</button>
-    <button type="submit" name="submit_for_moderation">Отправить на модерацию</button>
+    <div style="margin-top: 12px;">
+      <button type="submit" name="save_as_draft" value="1">Сохранить черновик</button>
+      <button type="submit" name="submit_for_moderation" value="1">Отправить на модерацию</button>
+      <a href="{% url 'events:my_events' %}" style="margin-left:8px;">Отмена</a>
+    </div>
+
   </form>
 
-  <!-- === JS для добавления тарифов === -->
   <script>
   (function() {
     const container = document.getElementById('tariffs-container');
@@ -64,7 +65,6 @@
   })();
   </script>
 
-  <!-- === Подключаем скрипт YandexGPT === -->
   {% load static %}
   <script defer src="{% static 'js/ai_description.js' %}"></script>
 

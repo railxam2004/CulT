@@ -33,6 +33,11 @@
   <p>{{ event.description|linebreaks }}</p>
 
   <h3>Тарифы</h3>
+{% if event.is_past %}
+  <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;margin:10px 0;">
+    <strong>Событие уже прошло.</strong> Покупка билетов недоступна.
+  </div>
+{% else %}
   {% if tariffs %}
     <ul>
       {% for et in tariffs %}
@@ -54,4 +59,5 @@
   {% else %}
     <p>Тарифы не указаны.</p>
   {% endif %}
+{% endif %}
 {% endblock %}

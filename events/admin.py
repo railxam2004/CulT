@@ -3,7 +3,8 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin.helpers import ActionForm
 from django.utils import timezone
-from .models import Category, Tariff, Event, EventTariff, EventEditRequest
+from .models import Category, Tariff, Event, EventTariff, EventEditRequest, PendingEvent
+
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -122,6 +123,25 @@ class EventAdmin(admin.ModelAdmin):
 
     action_form = EventActionForm
     actions = [mark_pending, publish_events, reject_events, mark_draft]
+
+@admin.register(PendingEvent)
+class PendingEventAdmin(EventAdmin):
+    """Отдельная таблица в админке, где показываются только события со статусом 'на модерации'."""
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(status=Event.Status.PENDING)
+
+    # В этой таблице нет создания/удаления: только модерация
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    # Оставим те же поля, но действия сфокусируем на модерацию
+    actions = [publish_events, reject_events, mark_draft]
+    list_display = ('title', 'organizer', 'starts_at', 'available_tickets', 'is_active')
+    list_filter = ('category',)
+
 
 # --- АДМИНКА ДЛЯ EVENTEDITREQUEST ---
 @admin.register(EventEditRequest)

@@ -11,6 +11,7 @@ from .models import CartItem
 from tickets.models import Order
 from tickets.services import create_order_from_cart, finalize_order_payment
 from payments.services import get_yk_payment # ДОБАВЛЕНО: для проверки статуса оплаты
+import json
 
 @login_required
 def add_to_cart(request, event_tariff_id):
@@ -26,6 +27,12 @@ def add_to_cart(request, event_tariff_id):
     if not (et.event.is_active and et.event.status == et.event.Status.PUBLISHED):
         messages.error(request, "Нельзя добавить билеты для неопубликованного мероприятия.")
         return redirect('events:detail', et.event.slug)
+
+    # --- ДОБАВЛЕННЫЙ БЛОК ---
+    if et.event.is_past:
+        messages.error(request, "Событие уже прошло. Покупка недоступна.")
+        return redirect('events:detail', et.event.slug)
+    # -------------------------
 
     try:
         qty = int(request.POST.get('quantity', '1') or 1)
@@ -116,31 +123,65 @@ def checkout(request):
 
 @login_required
 def checkout_success(request):
-    payment_id = request.session.pop('yk_payment_id', None)
-    order_id = request.session.get('yk_order_id')  # можно не вычищать, если есть своя логика
+    from payments.models import PaymentTransaction  # локальный импорт, чтобы избежать циклов
+    paid = False
+    order = None
 
-    if payment_id and order_id:
+    pid = request.GET.get('pid') or request.session.pop('yk_payment_id', None)
+    oid = request.GET.get('order') or request.session.get('yk_order_id')
+
+    # 1) Если знаем заказ — проверим его статус
+    if oid:
+        order = Order.objects.select_related('user').filter(id=oid, user=request.user).first()
+        if order and order.status == Order.Status.PAID:
+            paid = True
+
+    # 2) Если не оплачено, но есть payment_id — спросим ЮKassa
+    if not paid and pid and order:
         try:
-            order = Order.objects.select_related('user').get(id=order_id)
-            # проверим статус в ЮKassa
-            p = get_yk_payment(payment_id)
-            if getattr(p, 'status', None) == 'succeeded' and order.status != Order.Status.PAID:
-                finalize_order_payment(order, order.user)
-                messages.success(request, "Оплата прошла успешно. Билеты готовы!")
-            else:
-                # Если оплата не succeeded или уже оплачено (второй заход), просто информируем
-                if order.status == Order.Status.PAID:
-                    messages.info(request, "Заказ уже был оплачен.")
-                else:
-                    messages.warning(request, "Статус платежа не подтвержден. Пожалуйста, проверьте мои билеты.")
-        except Order.DoesNotExist:
-            messages.error(request, "Заказ не найден.")
+            p = get_yk_payment(pid)
+            if getattr(p, 'status', None) == 'succeeded':
+                if order.status != Order.Status.PAID:
+                    finalize_order_payment(order, order.user)
+                paid = True
         except Exception:
-            # не роняем страницу успеха, но информируем
-            messages.error(request, "Произошла ошибка при проверке платежа.")
-            pass # Игнорируем исключение, как в примере
+            pass
 
-    return render(request, "cart/success.html")
+    # 3) Если всё ещё не оплачено — попробуем найти последний платёж по этому заказу в нашей таблице
+    confirmation_url = None
+    if not paid and oid:
+        last_tx = PaymentTransaction.objects.filter(order_id=oid).order_by('-created_at').first()
+        if last_tx:
+            try:
+                p = get_yk_payment(last_tx.payment_id)
+                if getattr(p, 'status', None) == 'succeeded' and order:
+                    if order.status != Order.Status.PAID:
+                        finalize_order_payment(order, order.user)
+                    paid = True
+            except Exception:
+                pass
+
+            # на случай, если всё ещё не оплачено — дадим ссылку "вернуться к оплате"
+            if not paid:
+                # --- ЗАМЕНЕННЫЙ БЛОК ДЛЯ БЕЗОПАСНОГО ИЗВЛЕЧЕНИЯ URL ---
+                confirmation_url = None
+                if last_tx:
+                    try:
+                        # Десериализация, если payload является строкой, иначе используем как есть
+                        payload_data = json.loads(last_tx.payload) if isinstance(last_tx.payload, str) else last_tx.payload
+                        # Безопасное извлечение confirmation_url
+                        confirmation_url = payload_data.get('confirmation', {}).get('confirmation_url')
+                    except Exception:
+                        # Ловим ошибки десериализации (например, невалидный JSON)
+                        pass
+                # -------------------------------------------------------------
+
+    return render(request, "cart/success.html", {
+        "paid": paid,
+        "order": order,
+        "confirmation_url": confirmation_url,
+    })
+
 
 
 @login_required

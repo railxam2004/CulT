@@ -45,6 +45,14 @@ def event_list(request, slug=None):
           .filter(status=Event.Status.PUBLISHED, is_active=True)
           .select_related('category', 'organizer')
           .prefetch_related('event_tariffs__tariff'))
+    now = timezone.now()
+    show_past = (request.GET.get('past') == '1')
+
+    # Разделяем предстоящие и прошедшие
+    if show_past:
+        qs = qs.filter(starts_at__lt=now)
+    else:
+        qs = qs.filter(starts_at__gte=now)
 
     categories = Category.objects.all().order_by('name')
 
@@ -236,7 +244,44 @@ def my_event_create(request):
 def my_event_edit(request, pk: int):
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
 
-    # если уже есть активная заявка — не даём создать вторую
+    # === Вариант А: событие еще не опубликовано (или отклонено) — разрешаем полное редактирование ===
+    if event.status in (Event.Status.DRAFT, Event.Status.PENDING, Event.Status.REJECTED):
+        if request.method == "POST":
+            form = EventForm(request.POST, request.FILES, instance=event)
+            formset = EventTariffFormSet(request.POST, instance=event)
+            if form.is_valid() and formset.is_valid():
+                # Сохраним событие и тарифы
+                form.save(organizer=request.user, commit=True)
+                formset.save()
+
+                # Кнопка "Отправить на модерацию"
+                if "submit_for_moderation" in request.POST:
+                    if _event_has_active_tariff(event):
+                        event.status = Event.Status.PENDING
+                        event.moderation_comment = ""
+                        event.save(update_fields=["status", "moderation_comment"])
+                        messages.success(request, "Событие отправлено на модерацию.")
+                    else:
+                        messages.error(request, "Нужен хотя бы один активный тариф с остатком.")
+
+                # Иначе — остаётся черновиком/ожидающим (в зависимости от текущего статуса)
+                else:
+                    messages.success(request, "Черновик сохранён.")
+
+                return redirect("events:my_events")
+            else:
+                messages.error(request, "Проверьте форму: есть ошибки в данных или тарифах.")
+        else:
+            form = EventForm(instance=event)
+            formset = EventTariffFormSet(instance=event)
+
+        return render(request, "events/form.html", {
+            "form": form,
+            "formset": formset,
+            "is_edit": True,
+        })
+
+    # === Вариант Б: опубликовано — как было: ограниченные правки через EventEditRequest ===
     pending = event.edit_requests.filter(status=EventEditRequest.Status.PENDING).first()
     if pending:
         messages.info(request, "По этому мероприятию уже есть заявка на модерации. Дождитесь решения.")
@@ -251,18 +296,14 @@ def my_event_edit(request, pk: int):
             req.status = EventEditRequest.Status.PENDING
             req.save()
             messages.success(request, "Изменения отправлены на модерацию. После одобрения они появятся на сайте.")
-            return redirect("events:my_events")  # или на детальную: reverse("events:detail", args=[event.slug])
+            return redirect("events:my_events")
     else:
-        # заполним начальными данными из текущего события
         form = EventEditRequestForm(initial={
             "new_description": event.description,
             "new_category": event.category_id,
         })
 
-    return render(request, "events/edit_limited.html", {
-        "event": event,
-        "form": form,
-    })
+    return render(request, "events/edit_limited.html", {"event": event, "form": form})
 
 
 @login_required

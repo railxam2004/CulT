@@ -3,6 +3,17 @@
 
 {% block content %}
 <h1>Мероприятия</h1>
+<div style="margin: 8px 0;">
+  {% with qp=request.GET.urlencode %}
+    {% if request.GET.past == '1' %}
+      <strong>Прошедшие</strong> ·
+      <a href="?{% if qp %}{{ qp|cut:'past=1' }}{% endif %}">Предстоящие</a>
+    {% else %}
+      <strong>Предстоящие</strong> ·
+      <a href="?{% if qp %}{{ qp }}&{% endif %}past=1">Прошедшие</a>
+    {% endif %}
+  {% endwith %}
+</div>
 
 <!-- 🔍 Форма фильтров -->
 <form method="get" class="filters" style="margin-bottom: 1rem;">

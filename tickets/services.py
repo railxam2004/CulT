@@ -67,6 +67,11 @@ def create_order_from_cart(user):
     if not items:
         raise ValueError("Корзина пуста.")
 
+    # Запретим оформление, если в корзине есть прошедшие/закрытые события
+    for ci in items:
+        if not ci.event.is_buyable:
+            raise ValueError(f"Нельзя оформить заказ: событие «{ci.event.title}» недоступно для покупки.")
+
     order = Order.objects.create(user=user, total_price=Decimal('0.00'), status=Order.Status.PENDING)
 
     total = Decimal('0.00')

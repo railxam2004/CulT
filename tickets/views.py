@@ -116,6 +116,12 @@ def scan_ticket(request, event_id=None):
         if not (_is_admin(request.user) or event.organizer_id == request.user.id):
             return HttpResponseForbidden("Нет прав для этого события.")
 
+    # --- ДОБАВЛЕННЫЙ БЛОК ---
+    if event and event.is_past:
+        messages.info(request, "Сканирование закрыто: событие уже прошло.")
+        return render(request, "tickets/scan.html", {"event": event, "result": None})
+    # -------------------------
+
     ctx = {"event": event, "result": None}
 
     if request.method == "POST":
@@ -157,6 +163,7 @@ def scan_ticket(request, event_id=None):
 
         ctx["result"] = ticket
 
+    return render(request, "tickets/scan.html", ctx)
     return render(request, "tickets/scan.html", ctx)
 
 

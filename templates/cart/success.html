@@ -1,7 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Оплата успешно завершена{% endblock %}
+{% block title %}{% if paid %}Оплата успешно завершена{% else %}Оплата не завершена{% endif %}{% endblock %}
+
 {% block content %}
-  <h1>✅ Оплата прошла успешно!</h1>
-  <p>Ваши билеты готовы. Они высланы вам на почту.</p>
-  <p><a href="{% url 'tickets:my_tickets' %}">Перейти к моим билетам</a></p>
+  {% if paid %}
+    <h1>✅ Оплата прошла успешно!</h1>
+    <p>Ваши билеты готовы. Они высланы вам на почту.</p>
+    <p><a href="{% url 'tickets:my_tickets' %}">Перейти к моим билетам</a></p>
+  {% else %}
+    <h1>❗ Оплата не завершена</h1>
+    <p>Похоже, вы покинули страницу ЮKassa до завершения платежа.</p>
+    {% if confirmation_url %}
+      <p><a href="{{ confirmation_url }}">Вернуться к оплате</a></p>
+    {% else %}
+      <p><a href="{% url 'payments:yookassa_start' %}">Попробовать оплатить снова</a></p>
+    {% endif %}
+  {% endif %}
 {% endblock %}
