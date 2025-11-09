@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# === env ===
+# env
 load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "True") == "True"
@@ -109,26 +109,25 @@ LANGUAGE_CODE = 'ru-ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_TZ = True
 
-# --- Данные сайта для писем и шаблонов ---
+# Данные сайта для писем и шаблонов
 SITE_NAME = os.getenv('SITE_NAME', 'CulT')
 SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')
 
-# --- Email backend ---
-# По умолчанию в DEBUG — консоль, в проде — SMTP, но можно перезадать через переменные.
+# Email backend
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-# SMTP (Яндекс) — используем SSL: порт 465
+# SMTP Яндекс
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.yandex.ru')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')          # например, yourname@yandex.ru
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # пароль приложения (см. ниже)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'true').lower() == 'true'
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'  # для 587 ставьте true, а SSL -> false
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@localhost')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
-# --- Логирование отправки писем ---
+# Логирование отправки писем
 import logging
 LOGGING = {
     'version': 1,
@@ -160,20 +159,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # кастомный пользователь
 AUTH_USER_MODEL = 'users.User'
 
-# === Редиректы после логина/логаута ===
+# Редиректы после логина/логаута
 LOGIN_REDIRECT_URL = 'pages:home'
 LOGOUT_REDIRECT_URL = 'pages:home'
 LOGIN_URL = 'users:login'
 
 
-# --- YooKassa ---
+# YooKassa
 YOO_KASSA_SHOP_ID = os.getenv('YOO_KASSA_SHOP_ID', '')
 YOO_KASSA_SECRET_KEY = os.getenv('YOO_KASSA_SECRET_KEY', '')
 YOO_KASSA_IS_TEST = os.getenv('YOO_KASSA_IS_TEST', 'true').lower() == 'true'
 YOO_KASSA_RETURN_URL = os.getenv('YOO_KASSA_RETURN_URL', SITE_URL + '/checkout/success/')
 YOO_KASSA_WEBHOOK_URL = os.getenv('YOO_KASSA_WEBHOOK_URL', SITE_URL + '/payments/yookassa/webhook/')
 
-# для локальной разработки можно пропускать auth вебхука (чтобы не заморачиваться с Basic подписью)
+# для локальной разработки можно пропускать auth вебхука
 YOO_KASSA_SKIP_WEBHOOK_AUTH = os.getenv('YOO_KASSA_SKIP_WEBHOOK_AUTH', 'true').lower() == 'true'
 
 

@@ -58,6 +58,7 @@ EventTariffFormSet = inlineformset_factory(
     validate_min=False  # можно True, если хочешь строго требовать ≥1
 )
 
+# формы для запросов на редактирование опубликованных мероприятий
 class EventEditRequestForm(forms.ModelForm):
     class Meta:
         model = EventEditRequest

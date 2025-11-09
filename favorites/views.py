@@ -8,6 +8,7 @@ from events.models import Event
 from .models import Favorite
 
 @login_required
+#    Просмотр списка избранных мероприятий пользователя.
 def favorites_list(request):
     qs = (Favorite.objects
           .filter(user=request.user)
@@ -19,6 +20,7 @@ def favorites_list(request):
     return render(request, 'favorites/list.html', {'favorites': page_obj})
 
 @login_required
+#    Добавление мероприятия в избранное.
 def favorite_add(request, event_id: int):
     if request.method != 'POST':
         event = get_object_or_404(Event, pk=event_id)
@@ -30,6 +32,7 @@ def favorite_add(request, event_id: int):
     return redirect(nxt)
 
 @login_required
+#    Удаление мероприятия из избранного.
 def favorite_remove(request, event_id: int):
     if request.method != 'POST':
         event = get_object_or_404(Event, pk=event_id)

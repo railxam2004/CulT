@@ -4,24 +4,25 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Min, Case, When, Value, IntegerField, F
 from django.utils.dateparse import parse_date
 from django.shortcuts import get_object_or_404, redirect, render
-from urllib.parse import urlencode
 from tickets.models import Ticket
 from favorites.models import Favorite
 import csv
 from django.http import HttpResponse
 from django.utils import timezone
-from .forms import EventForm, EventTariffFormSet, EventEditRequestForm # ИЗМЕНЕНО: добавлен EventEditRequestForm
-from .models import Category, Event, EventEditRequest # ИЗМЕНЕНО: добавлен EventEditRequest
+from .forms import EventForm, EventTariffFormSet, EventEditRequestForm
+from .models import Category, Event, EventEditRequest
 import json
-from django.http import JsonResponse, HttpResponseNotAllowed
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
 from .services.ai import generate_event_description, YandexGPTError
 
 
 
 def _require_organizer(request):
+    """
+    Проверяет, является ли текущий пользователь авторизованным организатором.
+    Отправляет сообщение, если условие не выполнено.
+    """
     if not (request.user.is_authenticated and request.user.is_organizer):
         messages.info(request, "Доступно только организаторам.")
         return False
@@ -29,7 +30,10 @@ def _require_organizer(request):
 
 
 def _event_has_active_tariff(event: Event) -> bool:
-    # хотя бы один активный тариф с положительным остатком
+    """
+    Проверяет, есть ли у мероприятия хотя бы один активный тариф
+    с ненулевым остатком билетов.
+    """
     for et in event.event_tariffs.filter(is_active=True):
         rem = max((et.available_quantity or 0) - (et.sales_count or 0), 0)
         if rem > 0:
@@ -37,9 +41,11 @@ def _event_has_active_tariff(event: Event) -> bool:
     return False
 
 
-# ---------- ПУБЛИЧНАЯ ВИТРИНА ----------
 
 def event_list(request, slug=None):
+    """
+    Отображает список мероприятий с возможностью фильтрации, поиска и сортировки.
+    """
     # Базовый queryset: только опубликованные и активные
     qs = (Event.objects
           .filter(status=Event.Status.PUBLISHED, is_active=True)
@@ -159,6 +165,9 @@ def event_list(request, slug=None):
 
 
 def event_detail(request, slug: str):
+    """
+    Отображает детальную страницу мероприятия.
+    """
     event = get_object_or_404(
         Event,
         slug=slug,
@@ -185,6 +194,7 @@ def event_detail(request, slug: str):
 # ---------- КАБИНЕТ ОРГАНИЗАТОРА ----------
 
 @login_required
+# список моих мероприятий
 def my_events(request):
     qs = (Event.objects
           .filter(organizer=request.user)
@@ -199,25 +209,32 @@ def my_events(request):
 
 
 @login_required
+#Создание нового мероприятия организатором
 def my_event_create(request):
+# Проверка, является ли пользователь организатором
     if not _require_organizer(request):
         return redirect("users:profile")
 
     if request.method == "POST":
         form = EventForm(request.POST, request.FILES)
-        formset = EventTariffFormSet(request.POST)  # ✅ создаём сразу, не только после form.is_valid()
+        # Инициализируем формсет для тарифов
+        formset = EventTariffFormSet(request.POST)
 
         if form.is_valid() and formset.is_valid():
+            # Сохраняем событие (organizer передается в кастомном save формы)
             event = form.save(organizer=request.user, commit=True)
+            # Привязываем формсет к созданному событию и сохраняем тарифы
             formset.instance = event
             formset.save()
 
             if "submit_for_moderation" in request.POST:
+                # Если нажата кнопка "Отправить на модерацию", проверяем тарифы
                 if _event_has_active_tariff(event):
                     event.status = Event.Status.PENDING
                     event.save(update_fields=["status"])
                     messages.success(request, "Событие отправлено на модерацию.")
                 else:
+                    # Если нет активных тарифов, не разрешаем отправку на модерацию
                     messages.warning(
                         request,
                         "Нельзя отправить на модерацию без активных тарифов с положительным остатком. "
@@ -231,6 +248,7 @@ def my_event_create(request):
         else:
             messages.error(request, "Проверьте форму: есть ошибки в данных или тарифах.")
     else:
+        # GET-запрос: отображаем пустые формы
         form = EventForm()
         formset = EventTariffFormSet()
 
@@ -242,6 +260,11 @@ def my_event_create(request):
 
 @login_required
 def my_event_edit(request, pk: int):
+    """
+    Редактирование мероприятия организатором.
+    Логика разделена: полное редактирование (черновик/отклонено) 
+    или ограниченное через EventEditRequest (опубликовано).
+    """
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
 
     # === Вариант А: событие еще не опубликовано (или отклонено) — разрешаем полное редактирование ===
@@ -308,6 +331,7 @@ def my_event_edit(request, pk: int):
 
 @login_required
 def my_event_tickets(request, pk: int):
+    #Просмотр списка проданных билетов для конкретного мероприятия организатора.
     if not _require_organizer(request):
         return redirect("users:profile")
     event = get_object_or_404(Event, pk=pk, organizer=request.user)
@@ -320,6 +344,7 @@ def my_event_tickets(request, pk: int):
 
 @login_required
 def my_event_tickets_export(request, pk: int):
+    #Экспорт списка проданных билетов в формате CSV
     if not _require_organizer(request):
       return redirect("users:profile")
 
@@ -355,6 +380,7 @@ def my_event_tickets_export(request, pk: int):
 @login_required
 @require_POST
 def generate_description_api(request):
+    #API-эндпоинт для генерации описания мероприятия с помощью AI (YandexGPT).
     # Разрешим только организаторам и админам
     user = request.user
     if not (getattr(user, "is_organizer", False) or user.is_staff or user.is_superuser):
@@ -390,7 +416,7 @@ def generate_description_api(request):
     if location: parts.append(f"Локация: {location}")
     if keywords: parts.append(f"Ключевые слова: {keywords}")
     prompt = "Создай привлекательное описание мероприятия по данным:\n" + "\n".join(parts)
-
+    # Вызов сервиса AI
     try:
         text = generate_event_description(prompt)
         return JsonResponse({"text": text})

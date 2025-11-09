@@ -52,8 +52,7 @@ def yk_start(request):
 @csrf_exempt
 def yk_webhook(request):
     """
-    Вебхук от ЮKassa (опционально для локальной демки).
-    В продакшене лучше держать включенным и проверять Basic auth.
+    Вебхук от ЮKassa для уведомления о смене статуса платежа.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest('POST only')

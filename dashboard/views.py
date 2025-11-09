@@ -11,6 +11,7 @@ from tickets.models import OrderItem, Ticket
 
 
 @login_required
+#    Главная страница дашборда. Показывает статистику по продажам, билетам и событиям.
 def dashboard_index(request):
     user = request.user
     is_admin = user.is_staff or user.is_superuser
